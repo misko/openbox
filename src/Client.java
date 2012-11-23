@@ -5,25 +5,29 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 
 
-public class Client {
+public class Client extends SyncAgent {
 
-	Socket sckt;
-	ObjectOutputStream oos;
-	ObjectInputStream ois;
-	
 	public Client(String host_name, int host_port, String repo_root) throws UnknownHostException, IOException {
-		// TODO Auto-generated constructor stub
-		sckt = new Socket(host_name, host_port);
-		ois = new ObjectInputStream(sckt.getInputStream());
-		oos = new ObjectOutputStream(sckt.getOutputStream());
+		super(new Socket(host_name, host_port),repo_root);
 	}
 	
-	public void send(Object o) throws IOException {
-		oos.writeObject(o);
-	}
+
 	
-	public Object recieve() throws IOException, ClassNotFoundException {
-		return ois.readObject();
+	public void initialze() {
+		//need to send the state then listen for RFCHECK
+		try {
+			send(new ControlMessage(ControlMessage.PULL));
+			ControlMessage cm = (ControlMessage)recieve();
+			assert(cm.type==ControlMessage.STATE);
+			rsync();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 
 }

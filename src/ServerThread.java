@@ -3,15 +3,14 @@ import java.io.ObjectInputStream;
 import java.net.Socket;
 
 
-public class ServerThread implements Runnable {
+public class ServerThread extends SyncAgent implements Runnable {
 
-	Socket sckt;
 	
-	public ServerThread(Socket sckt) {
-		this.sckt=sckt;
+	public ServerThread(Socket sckt, String repo_root) throws IOException {
+		super(sckt,repo_root);
 	}
 	
-	public void read() throws IOException {
+	/*public void read() throws IOException {
 		ObjectInputStream ois = new ObjectInputStream(sckt.getInputStream());
 		try {
 			String s = (String) ois.readObject();
@@ -25,12 +24,32 @@ public class ServerThread implements Runnable {
 			e.printStackTrace();
 		}
 		
-	}
+	}*/
 
+	private void read_and_handle() {
+		try {
+			ControlMessage cm = (ControlMessage)recieve();
+			if (cm.type==ControlMessage.OK) {
+				System.out.println("Recieved " + cm.type + " from client");
+				sync();
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
-		
+		System.out.println("New server thread is running!");
+		boolean ok=true;
+		while (ok) {
+			System.out.println("Handling request");
+			ok=listen_and_handle();
+		}
 	}
 
 }

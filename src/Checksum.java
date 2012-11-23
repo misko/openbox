@@ -31,7 +31,7 @@ public class Checksum {
 						.substring(1));
 			}
 
-			System.out.println("Digest(in hex format):: " + sb.toString());
+			//System.out.println("Digest(in hex format):: " + sb.toString());
 			
 			sum=sb.toString();
 		} catch (NoSuchAlgorithmException e) {

@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -62,6 +63,14 @@ public class OpenBox {
 			
 		}
 		
+		File root = new File(repo_root);
+		try {
+			repo_root=root.getCanonicalPath();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
 		/*if (server && client) {
 			System.out.println("Error cannot be both server and client!");
 			System.exit(1);
@@ -96,8 +105,9 @@ public class OpenBox {
 			host_port=port;
 			try {
 				Client c = new Client(host_name, host_port, repo_root);
-				c.send("test");
-				c.send("what");
+				c.initialze();
+				//c.send("test");
+				//c.send("what");
 			} catch (UnknownHostException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
