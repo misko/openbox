@@ -22,6 +22,8 @@ public class Client {
 		oos.writeObject(o);
 	}
 	
-	public Object recieve
+	public Object recieve() throws IOException, ClassNotFoundException {
+		return ois.readObject();
+	}
 
 }

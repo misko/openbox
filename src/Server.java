@@ -10,6 +10,7 @@ public class Server {
 	
 	ServerSocket server_socket;
 	
+	State state;
 	
 	public Server(int listen_port, String repo_root) throws IOException {
 		this.listen_port=listen_port;
@@ -17,6 +18,9 @@ public class Server {
 		
 		//try to bind the socket
 		server_socket = new ServerSocket(listen_port);
+		
+		//walk to the base repo
+		state = new State(repo_root);
 	}
 	
 	synchronized public void listen() {
