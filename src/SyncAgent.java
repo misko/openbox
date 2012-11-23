@@ -60,6 +60,9 @@ public class SyncAgent {
 			//now lets figure out what to request
 			//there are two cases, either we are missing a file, or we have a file that needs to be 
 			//lets first check which files we are missing and request fchecks for those
+			
+			
+			//find out what files we need to check
 			HashSet<String> filenames_to_fcheck = new HashSet<String>();
 		    Iterator<Entry<String, String>> it = other_state.m.entrySet().iterator();
 		    while (it.hasNext()) {
@@ -80,8 +83,8 @@ public class SyncAgent {
 		        }
 		        //it.remove(); // avoids a ConcurrentModificationException
 		    }
-			//can be in any order and any number RFCHECK and RBLOCK
-		    
+
+		    //check the required files
 		    for (String repo_filename : filenames_to_fcheck) {
 		    	System.out.println("Requesting FCHECK of " + repo_filename);
 		    	send(new ControlMessage(ControlMessage.RFCHECK));
@@ -90,6 +93,18 @@ public class SyncAgent {
 		    	listen_and_handle();
 		    	//FileChecksums fcheck = recieve();
 		    }
+		    
+		    //find out if we have any files the other side does not
+		    it = state.m.entrySet().iterator();
+		    while (it.hasNext()) {
+		        Entry<String,String> pairs = it.next();
+		        String repo_filename = pairs.getKey();
+		        if (!other_state.m.containsKey(repo_filename)) {
+		        	System.out.println("Recieving repo from other side, but other missnig file "+repo_filename);
+		        }
+		    }
+			//can be in any order and any number RFCHECK and RBLOCK
+		    
 			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -103,7 +118,7 @@ public class SyncAgent {
 	public void handle_rfcheck() {
 		try {
 			FileChecksums fc = (FileChecksums)recieve();
-			RollingChecksum rc = new RollingChecksum(repo_root+fc.repo_filename, blocksize);
+			RollingChecksum rc = new RollingChecksum(repo_root+fc.repo_filename);
 			FileChecksums rfc = new FileChecksums(fc.repo_filename,rc.blocks());
 			send(new ControlMessage(ControlMessage.FCHECK));
 			send(rfc);
@@ -121,6 +136,7 @@ public class SyncAgent {
 		try {
 			FileChecksums fc = (FileChecksums)recieve();
 			System.out.println(fc);
+			FileDelta fd = new FileDelta(repo_root+fc.repo_filename, fc.checksums);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

@@ -6,6 +6,8 @@ import java.net.UnknownHostException;
 
 public class OpenBox {
 	
+	public static final int blocksize=10;
+	
 	static boolean server=false;
 	static boolean client=false;
 	
@@ -123,7 +125,7 @@ public class OpenBox {
 		String filename = "/Users/miskodzamba/test.c";
 		Checksum.ChecksumFile(filename);
 		try {
-			RollingChecksum rl = new RollingChecksum(filename,30);
+			RollingChecksum rl = new RollingChecksum(filename);
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
