@@ -20,7 +20,7 @@ public class RollingChecksum {
 		
 		// initialize the rolling checksum
 		update(OpenBox.blocksize);
-		System.out.println("INITIALIZED WITH "+data.size());
+		//System.out.println("INITIALIZED WITH "+data.size());
 		initialized=true;
 	}
 	

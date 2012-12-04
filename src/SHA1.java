@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-public class Checksum {
-	public static String ChecksumFile(String filename) {
+public class SHA1 {
+	public static String ChecksumFile(String filename) throws IOException {
 		MessageDigest md = null; 
 		FileInputStream fis = null; 
 		String sum=null;
@@ -37,11 +37,8 @@ public class Checksum {
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		} finally {
-			if (fis==null) {
+			if (fis!=null) {
 				try {
 					fis.close();
 				} catch (IOException e) {
