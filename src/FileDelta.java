@@ -1,6 +1,7 @@
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 
@@ -18,15 +19,59 @@ public class FileDelta {
 		
 		try {
 			//the hard case lets match these up
-			HashSet<Long> have_these= new HashSet<Long>();
+			HashSet<Long> need_these= new HashSet<Long>(); //TODO check the SHA1 of data!!
 			for (int i=0; i<sums.length; i++) {
-				have_these.add(sums[i][1]);
+				need_these.add(sums[i][1]);
+				System.out.println("Check sum " + sums[i][1]);
 			}
-			//now lets see if we roll what we get
-			long last_offset=0; //the byte after the last one we processed
+			
+			HashMap<Long,Block> have_these =new HashMap<Long, Block>();
 			long current_offset=0; //the 
 			RollingChecksum rl = new RollingChecksum(local_filename);
 			long h[] = rl.hash();
+			long moved=h[0];
+			while (moved>0) {
+				//System.out.println("X"+h[1]);
+				if (need_these.contains(h[1])) {
+					if (!have_these.containsKey(h[1])) {
+						//need to add the block to map
+						have_these.put(h[1],new Block(repo_filename,current_offset,true,h[1],h[0]));	
+					}
+					//moved=rl.update(OpenBox.blocksize);
+					moved=rl.update(1);
+				} else {
+					moved=rl.update(1);
+				}
+				h = rl.hash();
+				current_offset+=moved;
+			}
+			
+			
+			//should know all the chunks we have, lets make a list
+			current_offset=0;
+			for (long other_h[] : sums) {
+				Block b;
+				if (have_these.containsKey(other_h[1])) {
+					//lets just use our block
+					b = have_these.get(other_h[1]).copy();
+				} else {
+					//need to request this block
+					b = new Block(repo_filename,current_offset,false,other_h[1],other_h[0]);
+				}
+				b.dest_offset = current_offset;
+				ll.add(b);
+				current_offset+=other_h[0];
+			}
+			
+			/*
+			
+			//now lets see if we roll what we get
+			long last_offset=0; //the byte after the last one we processed
+			
+			
+			//lets find out which of the requested hashes we have
+			
+			
 			current_offset+=h[0];
 			while (true) {
 				int moved=0;
@@ -53,7 +98,7 @@ public class FileDelta {
 			}
 			if (last_offset!=current_offset) {
 				ll.add(new Block(repo_filename,last_offset,false, 0,current_offset-last_offset+1));
-			}
+			}*/
 		} catch (FileNotFoundException e) {
 			//cant find the file this means we need to request everything
 			long file_size = 0;

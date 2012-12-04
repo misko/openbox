@@ -39,11 +39,23 @@ public class RollingChecksum {
 		long h[] =new long[2];
 		h[0]=data.size();
 		h[1]=((b&mask)<<32)+(a & mask );
+		//System.out.println("PASSED");
+		assert(h[1]==raw_checksum());
 		return h;
 	}
 	
 	public boolean update() {
 		return update(1)>0  ? true : false;
+	}
+	
+	public long raw_checksum() {
+		long ap=0;
+		long bp=0;
+		for (Byte y : data) {
+			ap=(ap-y)%modp;
+			bp=(bp-OpenBox.blocksize*y)%modp;
+		}
+		return ((bp&mask)<<32)+(ap&mask);
 	}
 	
 	public int update(int d) {

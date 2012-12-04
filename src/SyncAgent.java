@@ -114,6 +114,7 @@ public class SyncAgent {
 		        	} else {
 		        		FileDelta fd = new FileDelta(our_filestate,checksums);
 		        		System.out.println(fd);
+		        		//System.exit(1);
 		        		//now we have the file delta lets request to fill the blocks we need
 		        		for (Block b : fd.ll) {
 		        			b.data=null;
@@ -203,7 +204,7 @@ public class SyncAgent {
 			raf = new RandomAccessFile(state.repo_path + '/' + b.repo_filename,"r");
 			assert(b.size<(1>>15)); //casting to int, just make sure
 			by = new byte[(int) b.size];
-			raf.seek(b.offset);
+			raf.seek(b.src_offset);
 			int r = raf.read(by);
 			assert(r==by.length);
 			b.data=by;
