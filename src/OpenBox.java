@@ -107,7 +107,7 @@ public class OpenBox {
 			host_port=port;
 			try {
 				Client c = new Client(host_name, host_port, repo_root);
-				c.initialze();
+				c.run();
 				//c.send("test");
 				//c.send("what");
 			} catch (UnknownHostException e) {

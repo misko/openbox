@@ -11,21 +11,14 @@ public class Client extends SyncAgent {
 	
 
 	
-	public void initialze() {
-		//need to send the state then listen for RFCHECK
-		try {
-			send(new ControlMessage(ControlMessage.PULL));
-			ControlMessage cm = (ControlMessage)recieve();
-			assert(cm.type==ControlMessage.STATE);
-			rsync();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
+	public void run() {
+		System.out.println("Client is trying to pull");
+		pull(); //first pull from the other side
+		System.out.println("Client is trying to listen");
+		ControlMessage cm = listen(); //then listen
+		assert(cm.type==ControlMessage.YOUR_TURN);
+		close();
+		System.out.println("Client is exiting");
 	}
 
 }

@@ -12,6 +12,8 @@ import java.util.Map.Entry;
 
 
 public class SyncAgent {
+	
+	
 	Socket sckt;
 	ObjectOutputStream oos;
 	ObjectInputStream ois;
@@ -29,7 +31,6 @@ public class SyncAgent {
 		ois=new ObjectInputStream(sckt.getInputStream());
 		state = new State(repo_root);
 		state.update_state();
-		System.out.println("MY STATE\n"+state);
 	}
 	
 	public void send(Object o) throws IOException {
@@ -42,7 +43,7 @@ public class SyncAgent {
 			return b;
 		}
 		try {
-			send(ControlMessage.RBlock(b));
+			send(ControlMessage.rblock(b));
 			send(b);
 			Block r = (Block)recieve();
 			assert(r.data!=null);
@@ -60,7 +61,7 @@ public class SyncAgent {
 	
 	public long [][] request_fcheck(FileState fs) {
     	try {
-    		send(ControlMessage.RFCheck(fs));
+    		send(ControlMessage.rfcheck(fs));
     		ControlMessage response_cm = (ControlMessage) recieve();
     		assert(response_cm.type==ControlMessage.FCHECK);
 	    	long [][] checksums = (long[][]) recieve();
@@ -79,24 +80,20 @@ public class SyncAgent {
 		return ois.readObject();
 	}
 	
-	public void sync() {
-		//lets send the other the state!
-		state.update_state();
-		try {
-			send(new ControlMessage(ControlMessage.STATE));
-			send(state);
-			System.out.println("Sent state!");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
 	
 	
-	public void rsync() {
+	public void pull() {
 		try {
+			//send a pull to other side
+			send(ControlMessage.pull()); //just for debuggin purposes
+			//send a request for state
+			send(ControlMessage.rstate());
+			//get back the other state
 			State other_state = (State)recieve();
 			state.diff(other_state);
+			
+			System.out.println("MY STATE:\n" + state);
+			System.out.println("OTHER STATE:\n"+ other_state);
 			
 			//check what we need to get, and ask for fchecks
 
@@ -124,61 +121,26 @@ public class SyncAgent {
 		        		}
 		        		//lets try to assemble it now
 		        		fd.assemble_to(our_filestate.local_filename);
+		        		File f = new File(our_filestate.local_filename);
+		        		f.setLastModified(other_filestate.last_modified);
 		        	}
 		        }
 		        
 		    }
-			
-			//now lets figure out what to request
-			//there are two cases, either we are missing a file, or we have a file that needs to be 
-			//lets first check which files we are missing and request fchecks for those
-			
-			/*//find out what files we need to check
-			HashSet<String> filenames_to_fcheck = new HashSet<String>();
-		    Iterator<Entry<String, String>> it = other_state.m.entrySet().iterator();
-		    while (it.hasNext()) {
-		        Entry<String,String> pairs = it.next();
-		        String repo_filename = pairs.getKey();
-		        if (!state.m.containsKey(repo_filename)) {
-		        	//we dont have the file
-		        	System.out.println("Missing file "+repo_filename);
-		        	filenames_to_fcheck.add(repo_filename);
-		        } else {
-		        	//we have the file but maybe it changed?
-		        	if (pairs.getValue().equals(state.m.get(repo_filename))) {
-		        		System.out.println("Hash is the same for " + repo_filename);
-		        	} else {
-		        		System.out.println("Something has changed about " + repo_filename);
-			        	filenames_to_fcheck.add(repo_filename);
-		        	}
-		        }
-		        //it.remove(); // avoids a ConcurrentModificationException
-		    }
-
-		    //check the required files
-		    for (String repo_filename : filenames_to_fcheck) {
-		    	System.out.println("Requesting FCHECK of " + repo_filename);
-		    	send(new ControlMessage(ControlMessage.RFCHECK));
-		    	send(new FileChecksums(repo_filename,null));
-		    	//get response
-		    	listen_and_handle();
-		    }
 		    
-		    //find out if we have any files the other side does not
-		    it = state.m.entrySet().iterator();
-		    while (it.hasNext()) {
-		        Entry<String,String> pairs = it.next();
-		        String repo_filename = pairs.getKey();
-		        if (!other_state.m.containsKey(repo_filename)) {
-		        	System.out.println("Recieving repo from other side, but other missnig file "+repo_filename);
-		        }
-		    }
-			//can be in any order and any number RFCHECK and RBLOCK*/
+		    System.out.println("Client finished pull successfully!");
 			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		try {
+			send(ControlMessage.yourturn());
+		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -245,11 +207,44 @@ public class SyncAgent {
 		}
 	}
 	
-	/*public void handle_fcheck() {
+	public void handle_rstate(ControlMessage cm) {
 		try {
-			FileChecksum fc = (FileChecksum)recieve();
-			System.out.print(fc);
-			FileDelta fd = new FileDelta(repo_root+fc.repo_filename, fc.checksums);
+			send(state);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	
+	public ControlMessage listen() {
+		try {
+			while(true) {
+				ControlMessage cm = (ControlMessage)recieve();
+				if (cm.type==ControlMessage.RSTATE) {
+					System.out.println("GOT RSTATE");
+					handle_rstate(cm);
+				} else if (cm.type==ControlMessage.RFCHECK) {
+					System.out.println("GOT RFCHECK");
+					handle_rfcheck(cm);
+				} else if (cm.type==ControlMessage.CLOSE) {
+					System.out.println("GOT CLOSE");
+					send(ControlMessage.close());
+					System.out.println("SENT CLOSE");
+					return cm;
+				} else if (cm.type==ControlMessage.YOUR_TURN) {
+					System.out.println("GOT YOUR TURN");
+					return cm;
+				} else if (cm.type==ControlMessage.RBLOCK) {
+					System.out.println("GOT RBLOCK");
+					handle_rblock(cm);
+				} else if (cm.type==ControlMessage.PULL) {
+					System.out.println("GOT PULL Request");
+				} else {
+					System.out.println("Failed to handle! state while in listen, state="+ cm.type);
+					return null;
+				}
+			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -257,35 +252,15 @@ public class SyncAgent {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		return null;
 		
-	}*/
+	}
 	
-	//return ControlMessage if could not handle it
-	public boolean listen_and_handle() {
+	public boolean close() {
 		try {
+			send(ControlMessage.close());
 			ControlMessage cm = (ControlMessage)recieve();
-			if (cm.type==ControlMessage.STATE) {
-				System.out.println("GOT STATE");
-				rsync();
-			} else if (cm.type==ControlMessage.RFCHECK) {
-				System.out.println("GOT RFCHECK");
-				handle_rfcheck(cm);
-			} else if (cm.type==ControlMessage.PULL) {
-				System.out.println("GOT PULL");
-				sync();
-			} else if (cm.type==ControlMessage.CLOSE) {
-				return false;
-			} else if (cm.type==ControlMessage.FCHECK) {
-				//need to compare to local file ad update
-				System.out.println("Recieved FCHECK");
-				//handle_fcheck();
-			} else if (cm.type==ControlMessage.RBLOCK) {
-				System.out.println("Recieved RBLOCK");
-				handle_rblock(cm);
-			} else {
-				System.out.println("Failed to handle!!!");
-				return false;
-			}
+			assert(cm.type==ControlMessage.CLOSE);
 			return true;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

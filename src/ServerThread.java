@@ -13,11 +13,12 @@ public class ServerThread extends SyncAgent implements Runnable {
 	@Override
 	public void run() {
 		System.out.println("New server thread is running!");
-		boolean ok=true;
-		while (ok) {
-			System.out.println("Handling request");
-			ok=listen_and_handle();
-		}
+		//lets handle the current connection
+		listen();
+		//now lets try to pull
+		pull();
+		//send(ControlMessage.yourturn());
+		listen();	
 	}
 
 }
