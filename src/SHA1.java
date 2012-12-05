@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+/**
+ * A wrapper to compute the SHA1 checksum of a file
+ *
+ */
 public class SHA1 {
 	public static String ChecksumFile(String filename) throws IOException {
 		MessageDigest md = null; 

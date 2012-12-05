@@ -37,49 +37,41 @@ public class SyncAgent {
 		oos.writeObject(o);
 	}
 	
-	public Block request_block(Block b) {
-		if (b.use_adler) {
-			fetch_data(b);
-			return b;
-		}
-		try {
-			send(ControlMessage.rblock(b));
-			send(b);
-			Block r = (Block)recieve();
-			assert(r.data!=null);
-			b.data=r.data; //link up the new data
-			return b;
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return null;
-	}
-	
-	public long [][] request_fcheck(FileState fs) {
-    	try {
-    		send(ControlMessage.rfcheck(fs));
-    		ControlMessage response_cm = (ControlMessage) recieve();
-    		assert(response_cm.type==ControlMessage.FCHECK);
-	    	long [][] checksums = (long[][]) recieve();
-	    	return checksums;
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	return null;
-	}
+
 	
 	public Object recieve() throws IOException, ClassNotFoundException {
 		return ois.readObject();
 	}
-	
+
+	public byte[] fetch_data(Block b) {
+		RandomAccessFile raf =null;
+		byte by[]=null;
+		try {
+			raf = new RandomAccessFile(state.repo_path + File.separatorChar + b.repo_filename,"r");
+			assert(b.size<(1>>15)); //casting to int, just make sure
+			by = new byte[(int) b.size];
+			raf.seek(b.src_offset);
+			int r = raf.read(by);
+			assert(r==by.length);
+			b.data=by;
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+			if (raf!=null) {
+				try {
+					raf.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+		return by;
+	}
 	
 	
 	public void pull() {
@@ -90,7 +82,7 @@ public class SyncAgent {
 			send(ControlMessage.rstate());
 			//get back the other state
 			State other_state = (State)recieve();
-			state.diff(other_state);
+			state.reconsolidate(other_state);
 			
 			System.out.println("MY STATE:\n" + state);
 			System.out.println("OTHER STATE:\n"+ other_state);
@@ -146,12 +138,50 @@ public class SyncAgent {
 		}
 	}
 	
+	
+	public Block request_block(Block b) {
+		if (b.use_adler) {
+			fetch_data(b);
+			return b;
+		}
+		try {
+			send(ControlMessage.rblock(b));
+			send(b);
+			Block r = (Block)recieve();
+			assert(r.data!=null);
+			b.data=r.data; //link up the new data
+			return b;
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public long [][] request_fcheck(FileState fs) {
+    	try {
+    		send(ControlMessage.rfcheck(fs));
+    		ControlMessage response_cm = (ControlMessage) recieve();
+	    	long [][] checksums = (long[][]) recieve();
+	    	return checksums;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	return null;
+	}
+	
 	public void handle_rfcheck(ControlMessage cm) {
 		try {
 			assert(cm.repo_filename!=null);
 			String filename = state.repo_path+File.separatorChar+cm.repo_filename;
 			RollingChecksum rc = new RollingChecksum(filename);
-			send(new ControlMessage(ControlMessage.FCHECK));
 			send(rc.blocks());
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -160,35 +190,6 @@ public class SyncAgent {
 		}
 	}
 	
-	public byte[] fetch_data(Block b) {
-		RandomAccessFile raf =null;
-		byte by[]=null;
-		try {
-			raf = new RandomAccessFile(state.repo_path + File.separatorChar + b.repo_filename,"r");
-			assert(b.size<(1>>15)); //casting to int, just make sure
-			by = new byte[(int) b.size];
-			raf.seek(b.src_offset);
-			int r = raf.read(by);
-			assert(r==by.length);
-			b.data=by;
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} finally {
-			if (raf!=null) {
-				try {
-					raf.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-		}
-		return by;
-	}
 	
 	public void handle_rblock(ControlMessage cm) {
 		try {

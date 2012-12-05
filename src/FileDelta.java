@@ -5,15 +5,42 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 
-
+/**
+ * 
+ * The FileDelta class is used to determine how to reconstruct an updated remote file locally.
+ * 
+ * The FileDelta class is provided with a local filename and remote adler64 checksums upon creation.
+ * From this data FileDelta constructs a linked list of Block requests (in the correct order) that describe
+ * the contents of the remote file using both local and remote data.
+ * 
+ * If only a single byte is changed in the remote file then only one block will set to be filled remotely, 
+ * the rest will be set to be filled locally.
+ * 
+ */
 public class FileDelta {
+	/** 
+	 * The filename with respect to the repository root
+	 */
 	String repo_filename;
+	/**
+	 * The filename on the current filesystem
+	 */
 	String local_filename;
+	/**
+	 * The linked list of Block objects, initially containing requests for all necessary data
+	 */
 	LinkedList<Block> ll;
 	
-	public void init(String local_filename, String repo_filename, long[][] sums) {
-		this.local_filename=local_filename;
-		this.repo_filename=repo_filename;
+	/** 
+	 * Creates a linked list of Block objects that are requests to be filled either remotely or locally.
+	 * Once the Block objects are filled with the data, the linear order of the data is the updated file
+	 * described by the checksums (sums)
+	 * @param fs The FileState of the local copy
+	 * @param sums The adler64 block checksums of the remote side
+	 */
+	public FileDelta(FileState fs, long [][] sums) {
+		this.local_filename=fs.local_filename;
+		this.repo_filename=fs.repo_filename;
 		//lets make a hash table from the sums
 		ll = new LinkedList<Block>();
 		
@@ -63,42 +90,6 @@ public class FileDelta {
 				current_offset+=other_h[0];
 			}
 			
-			/*
-			
-			//now lets see if we roll what we get
-			long last_offset=0; //the byte after the last one we processed
-			
-			
-			//lets find out which of the requested hashes we have
-			
-			
-			current_offset+=h[0];
-			while (true) {
-				int moved=0;
-				h=rl.hash();
-				if (have_these.contains(h[1])) {
-					if (last_offset+h[0]<current_offset) {
-						ll.add(new Block(repo_filename,last_offset,false,0,current_offset-h[0]-last_offset));
-						last_offset=current_offset-h[0];
-						//System.out.println("Missing " + last_offset + " " + (current_offset-h[0]));
-					}
-					ll.add(new Block(repo_filename,last_offset,true,h[1],h[0]));
-					//System.out.println("Adding hash! "+h[1]+ " " + (current_offset-h[0]+1) + " to "+current_offset);
-					last_offset=current_offset;
-					moved=rl.update(OpenBox.blocksize); //move ahead how many bytes we read
-				} else {
-					moved=rl.update(1);
-				}
-
-				current_offset+=moved;
-				//System.out.println(h[1]);
-				if (moved==0) {
-					break;
-				}
-			}
-			if (last_offset!=current_offset) {
-				ll.add(new Block(repo_filename,last_offset,false, 0,current_offset-last_offset+1));
-			}*/
 		} catch (FileNotFoundException e) {
 			//cant find the file this means we need to request everything
 			long file_size = 0;
@@ -111,13 +102,6 @@ public class FileDelta {
 		}
 	}
 	
-	public FileDelta(FileState fs, long [][] sums) {
-		init(fs.local_filename,fs.repo_filename,sums);
-	}
-	
-	public FileDelta(String local_filename , String repo_filename, long[][] sums) {
-		init(local_filename,repo_filename,sums);
-	}
 	
 	public String toString() {
 		String r = "FD: " + repo_filename+"\n";
@@ -131,6 +115,12 @@ public class FileDelta {
 	
 	
 	//TODO should not be calling this for big files, need to call incrementally otherwise files fill up RAM!
+	/**
+	 * Assemble the Blocks into a file.
+	 * A prerequisite is that all initial Block requests have been filled
+	 * @param local_filename_out The filename to write the output to
+	 * @return The number of bytes written to file
+	 */
 	public long assemble_to(String local_filename_out ) {
 		long out_bytes=0;
 		//we have all the bytes we need!

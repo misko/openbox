@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Queue;
 
-
+/**
+ * This class is used to compute the adler64 checksums of a file.
+ * 
+ */
 public class RollingChecksum {
 	private static long modp=4294967291l;
 	FileInputStream fis=null;
@@ -13,6 +16,12 @@ public class RollingChecksum {
 	long mask = 0xffffffff;
 	LinkedList<Byte> data;
 	boolean initialized=false;
+	
+	/** 
+	 * Initialize the rolling checksum
+	 * @param filename The filename to use
+	 * @throws FileNotFoundException If we cant find the file...
+	 */
 	public RollingChecksum(String filename) throws FileNotFoundException {
 		fis=new FileInputStream(filename);
 		
@@ -24,6 +33,10 @@ public class RollingChecksum {
 		initialized=true;
 	}
 	
+	/**
+	 * Returns the adler64 checksum of consecutive non-overlapping windows of size OpenBox.blocksize
+	 * @return The checksum of consecutive data blocks
+	 */
 	public long[][] blocks() {
 		LinkedList<long[]> ll=new LinkedList<long[]>();
 		do {
@@ -35,19 +48,31 @@ public class RollingChecksum {
 		return ll.toArray(new long[0][0]);
 	}
 	
+	/**
+	 * Return the size of the current window and the hash
+	 * @return (size,adler64 hash)
+	 */
 	public long[] hash() {
 		long h[] =new long[2];
 		h[0]=data.size();
 		h[1]=((b&mask)<<32)+(a & mask );
-		//System.out.println("PASSED");
-		assert(h[1]==raw_checksum());
+		//assert(h[1]==raw_checksum());
 		return h;
 	}
 	
+	/**
+	 * Move the window by one byte
+	 * @return True if the window has been moved
+	 */
 	public boolean update() {
 		return update(1)>0  ? true : false;
 	}
 	
+	/**
+	 * Compute the checksum from the data in the window, not using the rolling variables.
+	 * Useful for debugging.
+	 * @return The adler64 checksum of data in the current window
+	 */
 	public long raw_checksum() {
 		long ap=0;
 		long bp=0;
@@ -58,6 +83,11 @@ public class RollingChecksum {
 		return ((bp&mask)<<32)+(ap&mask);
 	}
 	
+	/** 
+	 * Move the rolling window by d bytes
+	 * @param d The number of bytes to move the window by
+	 * @return The number of bytes that the window has been moved by
+	 */
 	public int update(int d) {
 		try {
 			int bytes_read=0;

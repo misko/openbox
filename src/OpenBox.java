@@ -11,22 +11,24 @@ public class OpenBox {
 	static boolean server=false;
 	static boolean client=false;
 	
-	//client variables
+	static boolean set_host_name=false;
 	static String host_name;
+	static boolean set_host_port=false;
 	static int host_port;
-	
-	
-	//server variables
+	static boolean set_listen_port=false;
 	static int listen_port;
-	
-	//both
+	static boolean set_repo_root=false;
 	static String repo_root;
 	
 	
+	public static void usage() {
+		String program_name="java OpenBox";
+		System.out.println("OpenBox"+"\n"+"------------------");
+		System.out.println("Using in server mode: " + program_name + "-p port_to_listen_on -r repository_root");
+		System.out.println("Using in client mode: " + program_name + "-p port_to_connect_on -s servername_or_ip -r repository_root");
+	}
+	
 	public static void main(String[] args) {
-		
-		
-		System.out.println("-p port, -s hostname, -r repo");
 		
 		//parse the command line arguments
 		int port=-1;
@@ -37,9 +39,11 @@ public class OpenBox {
 				i++;
 				if (i==args.length) {
 					System.out.println("ERROR missing port");
+					usage();
 					System.exit(1);
 				}
 				port=Integer.parseInt(args[i]);
+				
 			}
 			
 			//looking for server address
@@ -47,10 +51,12 @@ public class OpenBox {
 				i++;
 				if (i==args.length) {
 					System.out.println("ERROR missing hostname");
+					usage();
 					System.exit(1);
 				}
 				host_name = args[i];
 				client=true;
+				set_host_name=true;
 			}
 			
 			//looking for repo root
@@ -58,11 +64,37 @@ public class OpenBox {
 				i++;
 				if (i==args.length) {
 					System.out.println("ERROR missing repo root");
+					usage();
 					System.exit(1);
 				}
 				repo_root=args[i];
+				set_repo_root=true;
 			}
 			
+		}
+		if (port>=0) {
+			if (client) {
+				set_host_port=true;
+				host_port=port;
+			} else {
+				set_listen_port=true;
+				listen_port=port;
+			}
+		}
+
+		if (!client) {
+			server=true;
+		}
+		
+		
+		if (client && set_host_port && set_host_name && set_repo_root) { 
+			//everything is good
+		} else if (!client && set_listen_port && set_repo_root) {
+			//everything is good
+		} else {
+			//something is not right!
+			usage();
+			System.exit(1);
 		}
 		
 		File root = new File(repo_root);
@@ -71,19 +103,9 @@ public class OpenBox {
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
+			System.exit(1);
 		}
 		
-		/*if (server && client) {
-			System.out.println("Error cannot be both server and client!");
-			System.exit(1);
-		}
-		if (!server && !client) {
-			System.out.println("Must be either server or client");
-			System.exit(1);
-		}*/
-		if (!client) {
-			server=true;
-		}
 		
 		if (repo_root==null) {
 			System.out.println("Must specify the repo root!");

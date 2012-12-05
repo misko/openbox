@@ -3,22 +3,40 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
-
+/**
+ * The State object contains the current state of the repository.
+ * 
+ * This is composed of many individual FileState objects (one for each file) along with the path of the repository root
+ * on the local file system and the last synchronization time
+ *
+ */
 public class State implements Serializable {
+	/**
+	 * The time of last synchronization
+	 * Currently not implemented. :(
+	 */
 	Date last_sync;
+	/**
+	 * A hashmap of filenames (with respect to repository root) to their corresponding FileState objects
+	 */
 	public HashMap<String,FileState> m;
+	/** 
+	 * The path for the root of the repository on the local filesystem
+	 */
 	String repo_path;
-	
-	boolean change=false; //has the state changed since last sync
-	
+
+	/**
+	 * Recursively traverse the directory and update the current State
+	 * @param dir The root directory to traverse
+	 * @return True if and only if there has been a change in state detected
+	 */
 	private boolean walk_dir(File dir) {
 		//list the files
+		boolean change=false;
 		File listFile[] = dir.listFiles();
 		if (listFile != null) {
 			for (int i = 0; i < listFile.length; i++) {
@@ -52,23 +70,25 @@ public class State implements Serializable {
 		return change;
 	}
 	
+	/**
+	 * Create and populate a new State object from the given root folder
+	 * @param repo_path The root of the repository
+	 */
 	public State(String repo_path) {
 		m = new HashMap<String,FileState>();
 		this.repo_path=repo_path;
 	}
 	
+	/**
+	 * Using the repository root, update the FileState's recursively
+	 * @return True if and only if a change has been detected
+	 */
 	public boolean update_state() { 
 		System.out.println("Updating state");
 		//open the directory
 		File dir = new File(repo_path);
 		return walk_dir(dir);
 	}
-	
-	public void synced() {
-		change=false;
-		last_sync=new Date(); //TODO this could be out of sync and cause problems!
-	}
-	
 	
 	public String toString() {
 		String r="";
@@ -84,8 +104,20 @@ public class State implements Serializable {
 	}
 	
 	
-	
-	public boolean diff(State other_state) {
+	/**
+	 * This function potentially updates both the current and give State objects.
+	 * 
+	 * If a file needs to be sent to the remote server the 'send' flag for the FileState
+	 * object will be set to true in the current State. If it is the opposite case the 
+	 * 'send' flag will be set to true in the other_state.
+	 * 
+	 * If a FileState object is missing (with respect to its counterpart), it will be created
+	 * with the corresponding flag (local_missing or repo_missing).
+	 * 
+	 * @param other_state The state to compare/update against
+	 * @return True if and only if a difference was detected
+	 */
+	public boolean reconsolidate(State other_state) {
 		boolean diff=false;
 		//find out what files are different or missing from our side
 	    Iterator<Entry<String, FileState>> it = other_state.m.entrySet().iterator();
