@@ -34,18 +34,23 @@ public class RollingChecksum {
 	}
 	
 	/**
-	 * Returns the adler64 checksum of consecutive non-overlapping windows of size OpenBox.blocksize
+	 * Returns the adler64 and MD5 checksums of consecutive non-overlapping windows of size OpenBox.blocksize
 	 * @return The checksum of consecutive data blocks
 	 */
-	public long[][] blocks() {
-		LinkedList<long[]> ll=new LinkedList<long[]>();
+	public FileChecksum[] blocks() {
+		LinkedList<FileChecksum> ll=new LinkedList<FileChecksum>();
 		do {
 			long h[] = hash();
-			ll.add(h);
+			byte[] by = new byte[data.size()];
+			int index = 0;
+			for (byte b : data) {
+			    by[index++] = b;
+			}
+			ll.add(new FileChecksum(h[0],h[1],MD5.MD5(by)));
 			//System.out.println(""+ h[0]+ " " +h[1]);
 		} while (update(OpenBox.blocksize)>0);
 		
-		return ll.toArray(new long[0][0]);
+		return ll.toArray(new FileChecksum[0]);
 	}
 	
 	/**
@@ -58,6 +63,19 @@ public class RollingChecksum {
 		h[1]=((b&mask)<<32)+(a & mask );
 		//assert(h[1]==raw_checksum());
 		return h;
+	}
+	
+	/**
+	 * Return the md5 checksum of data in window
+	 * @return The MD5 checksum
+	 */
+	public String hash_md5() {
+		byte[] by = new byte[data.size()];
+		int index = 0;
+		for (byte b : data) {
+		    by[index++] = b;
+		}
+		return MD5.MD5(by);
 	}
 	
 	/**

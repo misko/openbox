@@ -27,11 +27,7 @@ public class Block implements Serializable {
 	 * If this is set then do not fill the Block from remote side, instead use the local
 	 * data that has this checksum
 	 */
-	boolean use_adler;
-	/**
-	 * The adler64 checksum for this Block. This is only useful when use_adler is set true.
-	 */
-	long adler64=0;
+	boolean local_block;
 	/**
 	 * The data corresponding to this Block. If this is null then this Block is a request
 	 * to be filled. Once filled the Block carries the data as described. 
@@ -52,17 +48,28 @@ public class Block implements Serializable {
 	 * @param adler64 the adler64 checksum for this Block
 	 * @param size the number of bytes in this block
 	 */
-	public Block(String repo_filename, long src_offset, boolean use_adler, long adler64, long size) {
+	private Block(String repo_filename, long src_offset, long dest_offset, boolean local_block, long size) {
 		this.size=size;
-		this.use_adler=use_adler;
-		this.adler64=adler64;
+		this.local_block=local_block;
 		this.src_offset=src_offset;
 		this.repo_filename=repo_filename;
+		this.dest_offset=dest_offset;
 		data=null;
 	}
 	
+	public static Block BlockRemoteRequest(String repo_filename, long src_offset, long dest_offset, long size) {
+		Block b = new Block(repo_filename,src_offset,dest_offset, false,size);
+		return b;
+	}
+	
+	public static Block BlockLocalRequest(String repo_filename, long src_offset, long dest_offset, long size ) {
+		Block b = new Block(repo_filename,src_offset,dest_offset, true,size);
+		return b;
+		
+	}
+	
 	public String toString() {
-		return repo_filename + " src_offset: " + src_offset + " dst_offset: "+ dest_offset+ " adler: " + (use_adler ? adler64 : "N/A") + " size: " + size;
+		return repo_filename + " src_offset: " + src_offset + " dst_offset: "+ dest_offset+ " local: " + (local_block ? "Y" : "N") + " size: " + size;
 	}
 	
 	/**
@@ -71,8 +78,7 @@ public class Block implements Serializable {
 	 * @return A copy of the Block
 	 */
 	public Block copy() {
-		Block b = new Block(repo_filename,src_offset,use_adler,adler64,size);
-		b.dest_offset=dest_offset;
+		Block b = new Block(repo_filename,src_offset,dest_offset,local_block,size);
 		b.data=data;
 		return b;
 		

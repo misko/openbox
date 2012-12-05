@@ -74,7 +74,12 @@ public class FileState implements Serializable {
 	 * @param other The other FileState object
 	 * @return True if the two are equal (with respect to compared fields, described above)
 	 */
-	public boolean equals(FileState other) {
+	@Override
+	public boolean equals(Object othero) {
+		if (othero.getClass()!=getClass()) {
+			return false;
+		}
+		FileState other = (FileState)othero;
 		if (!repo_filename.equals(other.repo_filename)) {
 			return false;
 		} else if (!sha1.equals(other.sha1)) {

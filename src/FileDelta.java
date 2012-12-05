@@ -38,7 +38,7 @@ public class FileDelta {
 	 * @param fs The FileState of the local copy
 	 * @param sums The adler64 block checksums of the remote side
 	 */
-	public FileDelta(FileState fs, long [][] sums) {
+	public FileDelta(FileState fs, FileChecksum sums[]) {
 		this.local_filename=fs.local_filename;
 		this.repo_filename=fs.repo_filename;
 		//lets make a hash table from the sums
@@ -46,23 +46,32 @@ public class FileDelta {
 		
 		try {
 			//the hard case lets match these up
-			HashSet<Long> need_these= new HashSet<Long>(); //TODO check the SHA1 of data!!
+			HashMap<Long,LinkedList <FileChecksum> > need_these= new HashMap<Long,LinkedList <FileChecksum> >();
 			for (int i=0; i<sums.length; i++) {
-				need_these.add(sums[i][1]);
-				System.out.println("Check sum " + sums[i][1]);
+				if (!need_these.containsKey(sums[i].adler64)) {
+					need_these.put(sums[i].adler64, new LinkedList<FileChecksum>());
+				}
+				need_these.get(sums[i].adler64).add(sums[i]);
+				//System.out.println("Check sum " + sums[i][1]);
 			}
 			
-			HashMap<Long,Block> have_these =new HashMap<Long, Block>();
+			HashMap<FileChecksum,Block> have_these =new HashMap<FileChecksum, Block>();
 			long current_offset=0; //the 
 			RollingChecksum rl = new RollingChecksum(local_filename);
 			long h[] = rl.hash();
 			long moved=h[0];
 			while (moved>0) {
 				//System.out.println("X"+h[1]);
-				if (need_these.contains(h[1])) {
-					if (!have_these.containsKey(h[1])) {
-						//need to add the block to map
-						have_these.put(h[1],new Block(repo_filename,current_offset,true,h[1],h[0]));	
+				if (need_these.containsKey(h[1])) {
+					//had a adler64 collision check the md5
+					String md5_hash = rl.hash_md5(); //fairly expensive step, can optimize only compute if actually found a missing md5 from below
+					for (FileChecksum fc : need_these.get(h[1])) {
+						//first see if there is a md5 collision
+						if (md5_hash.equals(fc.md5)) {
+							//pretty sure this is the piece
+							have_these.put(fc,  Block.BlockLocalRequest(md5_hash, current_offset, -1, h[0]));
+							//have_these.put(fc, new Block(repo_filename,current_offset,true,h[1],h[0]));
+						}
 					}
 					//moved=rl.update(OpenBox.blocksize);
 					moved=rl.update(1);
@@ -76,29 +85,34 @@ public class FileDelta {
 			
 			//should know all the chunks we have, lets make a list
 			current_offset=0;
-			for (long other_h[] : sums) {
+			System.out.println("FD building");
+			for (FileChecksum fc : sums) {
 				Block b;
-				if (have_these.containsKey(other_h[1])) {
+				if (have_these.containsKey(fc)) {
 					//lets just use our block
-					b = have_these.get(other_h[1]).copy();
+					b = have_these.get(fc).copy();
+					System.out.println("LOCAL\t"+fc);
 				} else {
 					//need to request this block
-					b = new Block(repo_filename,current_offset,false,other_h[1],other_h[0]);
+					b=Block.BlockRemoteRequest(repo_filename, current_offset, -1, fc.size);
+					System.out.println("REMOTE\t"+fc);
+					//b = new Block(repo_filename,current_offset,false,other_h[1],other_h[0]);
 				}
 				b.dest_offset = current_offset;
 				ll.add(b);
-				current_offset+=other_h[0];
+				//current_offset+=other_h[0];
+				current_offset+=fc.size;
 			}
 			
 		} catch (FileNotFoundException e) {
 			//cant find the file this means we need to request everything
 			long file_size = 0;
-			//create one large request block
-			for (long[] h : sums) {
-				file_size+=h[0];
+			//create blocks to request
+			for (FileChecksum fc : sums) {
+				Block b = Block.BlockRemoteRequest(repo_filename, file_size, file_size, fc.size);
+				file_size+=fc.size;
+				ll.add(b);
 			}
-			Block b = new Block(repo_filename, 0,false, 0, file_size);
-			ll.add(b);
 		}
 	}
 	

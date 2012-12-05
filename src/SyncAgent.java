@@ -98,7 +98,7 @@ public class SyncAgent {
 		        //ok lets figure out if the server should send it over to us!
 		        if (other_filestate.send) {
 		        	System.out.println("Requesting FCHECK, "+ other_filestate);
-		        	long [][] checksums = request_fcheck(other_filestate);
+		        	FileChecksum checksums[] = request_fcheck(other_filestate);
 		        	if (checksums==null) {
 		        		System.out.println("A serious error has occured. FCHECK recieved is null!");
 		        	} else {
@@ -140,7 +140,7 @@ public class SyncAgent {
 	
 	
 	public Block request_block(Block b) {
-		if (b.use_adler) {
+		if (b.local_block) {
 			fetch_data(b);
 			return b;
 		}
@@ -161,11 +161,10 @@ public class SyncAgent {
 		return null;
 	}
 	
-	public long [][] request_fcheck(FileState fs) {
+	public FileChecksum[] request_fcheck(FileState fs) {
     	try {
     		send(ControlMessage.rfcheck(fs));
-    		ControlMessage response_cm = (ControlMessage) recieve();
-	    	long [][] checksums = (long[][]) recieve();
+	    	FileChecksum checksums[] = (FileChecksum[]) recieve();
 	    	return checksums;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -194,7 +193,7 @@ public class SyncAgent {
 	public void handle_rblock(ControlMessage cm) {
 		try {
 			Block b = (Block)recieve();
-			assert(!b.use_adler);
+			assert(!b.local_block);
 			//we need to now fill the block
 			fetch_data(b);
 			//filled the request sending it back!
