@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 
 
 public class State implements Serializable {
@@ -26,7 +27,7 @@ public class State implements Serializable {
 				} else {
 					try {
 						String local_filename = listFile[i].getCanonicalPath();
-						String repo_filename=local_filename.replaceFirst(repo_path, "");
+						String repo_filename=local_filename.replaceFirst(Pattern.quote(repo_path), "");
 						FileState current_fs = new FileState(repo_filename, local_filename);
 						//System.out.println(filename + " " + Checksum.ChecksumFile(filename));
 						if (m.containsKey(repo_filename)) {
@@ -94,7 +95,7 @@ public class State implements Serializable {
         	FileState other_filestate = pairs.getValue();
 	        if (!m.containsKey(repo_filename)) {
 	        	//we dont have the file
-	        	FileState new_filestate = new FileState(repo_filename,repo_path+'/'+repo_filename);
+	        	FileState new_filestate = new FileState(repo_filename,repo_path+File.separatorChar+repo_filename);
 	        	other_filestate.send=true;
 	        	m.put(repo_filename,new_filestate);
 	        	diff=true;

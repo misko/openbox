@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -186,7 +187,7 @@ public class SyncAgent {
 	public void handle_rfcheck(ControlMessage cm) {
 		try {
 			assert(cm.repo_filename!=null);
-			String filename = state.repo_path+'/'+cm.repo_filename;
+			String filename = state.repo_path+File.separatorChar+cm.repo_filename;
 			RollingChecksum rc = new RollingChecksum(filename);
 			send(new ControlMessage(ControlMessage.FCHECK));
 			send(rc.blocks());
@@ -201,7 +202,7 @@ public class SyncAgent {
 		RandomAccessFile raf =null;
 		byte by[]=null;
 		try {
-			raf = new RandomAccessFile(state.repo_path + '/' + b.repo_filename,"r");
+			raf = new RandomAccessFile(state.repo_path + File.separatorChar + b.repo_filename,"r");
 			assert(b.size<(1>>15)); //casting to int, just make sure
 			by = new byte[(int) b.size];
 			raf.seek(b.src_offset);
