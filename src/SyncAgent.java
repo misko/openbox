@@ -74,10 +74,15 @@ public class SyncAgent {
 	}
 	
 	
-	public void pull() {
+	public boolean pull() {
 		try {
 			//send a pull to other side
-			send(ControlMessage.pull()); //just for debuggin purposes
+			send(ControlMessage.pull()); 
+			ControlMessage cm = (ControlMessage)recieve();
+			if (cm.type==ControlMessage.TRY_LATER) {
+				return false;
+			}
+			
 			//send a request for state
 			send(ControlMessage.rstate());
 			//get back the other state
@@ -136,6 +141,7 @@ public class SyncAgent {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		return true;
 	}
 	
 	
@@ -217,7 +223,7 @@ public class SyncAgent {
 	}
 	
 	
-	public ControlMessage listen() {
+	public ControlMessage listen(boolean accept_pull) {
 		try {
 			while(true) {
 				ControlMessage cm = (ControlMessage)recieve();
@@ -240,6 +246,16 @@ public class SyncAgent {
 					handle_rblock(cm);
 				} else if (cm.type==ControlMessage.PULL) {
 					System.out.println("GOT PULL Request");
+					
+					//need to respond with YOUR TURN
+					if (accept_pull) {
+						send(ControlMessage.yourturn());
+						System.out.println("->accepted");
+					} else {
+						send(ControlMessage.try_later());
+						System.out.println("->rejected");
+						return cm;
+					}
 				} else {
 					System.out.println("Failed to handle! state while in listen, state="+ cm.type);
 					return null;

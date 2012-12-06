@@ -7,7 +7,7 @@ import java.io.Serializable;
 public class ControlMessage implements Serializable {
 	//Not all message types are currently used
 	
-	//public static final int OK = 0; //not used
+	//public static final int OK = 0; 
 	//public static final int STATE = 1<<0; //not used
 	
 	/**
@@ -38,6 +38,8 @@ public class ControlMessage implements Serializable {
 	 * Used to notify receiver that they should move out of listen state, and that this side is now listening
 	 */
 	public static final int YOUR_TURN = 1<<10;
+	public static final int TRY_LATER = 1<<11;
+	
 	
 	public String repo_filename;
 
@@ -103,4 +105,8 @@ public class ControlMessage implements Serializable {
 		return cm;
 	}
 	
+	public static ControlMessage try_later() {
+		ControlMessage cm = new ControlMessage(ControlMessage.TRY_LATER);
+		return cm;
+	}
 }

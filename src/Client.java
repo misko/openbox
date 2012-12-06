@@ -13,9 +13,9 @@ public class Client extends SyncAgent {
 	
 	public void run() {
 		System.out.println("Client is trying to pull");
-		pull(); //first pull from the other side
+		boolean r = pull(); //first pull from the other side
 		System.out.println("Client is trying to listen");
-		ControlMessage cm = listen(); //then listen
+		ControlMessage cm = listen(true); //then listen
 		assert(cm.type==ControlMessage.YOUR_TURN);
 		close();
 		System.out.println("Client is exiting");
