@@ -26,6 +26,7 @@ public class ServerThread extends SyncAgent implements Runnable {
 		if (client_push) {
 			boolean r = pull();
 			server.client_done_push();
+			
 		} else {
 			try {
 				send(ControlMessage.yourturn());

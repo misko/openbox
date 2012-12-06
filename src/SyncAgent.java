@@ -30,7 +30,7 @@ public class SyncAgent {
 		oos=new ObjectOutputStream(sckt.getOutputStream());
 		ois=new ObjectInputStream(sckt.getInputStream());
 		state = new State(repo_root);
-		state.update_state();
+		state.update_state(); //TODO could share this among multiple connections
 	}
 	
 	public void send(Object o) throws IOException {

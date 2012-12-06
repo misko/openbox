@@ -2,6 +2,10 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.VFS;
+
+
 
 public class Server {
 
@@ -11,6 +15,8 @@ public class Server {
 	
 	int clients_pulling=0;
 	int clients_pushing=0;
+	
+	State last_state;
 	
 	
 	public synchronized boolean client_read() {
@@ -43,6 +49,9 @@ public class Server {
 		
 		//try to bind the socket
 		server_socket = new ServerSocket(listen_port);
+		
+		//lets try to listen on the repo folder
+		//FileSystemManager fsm = VFS.getManager();
 	}
 	
 	synchronized public void listen() {
