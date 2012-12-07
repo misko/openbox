@@ -59,14 +59,16 @@ public class State implements Serializable {
 		}
 		boolean change=false;
 		if (!f.exists()) {
-			System.out.println("NOT EXIST");
 			//the file does not exist need to mark it as deleted
 			try {
 				String repo_filename = f.getCanonicalPath().replace(repo_path, "");
 				assert(m.containsKey(repo_filename));
 				FileState fs = m.get(repo_filename);
-				fs.deleted=true;
-				fs.earliest_deleted_time=(new Date()).getTime()-OpenBox.poll_delay;
+				if (fs.deleted==false) {
+					fs.deleted=true;
+					fs.earliest_deleted_time=(new Date()).getTime()-OpenBox.poll_delay;
+					change=true;
+				}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

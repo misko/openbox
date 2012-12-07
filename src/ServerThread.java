@@ -6,7 +6,8 @@ public class ServerThread extends SyncAgent implements Runnable {
 	Server server;
 	
 	public ServerThread(Server server, Socket sckt, String repo_root, State state) throws IOException {
-		super(sckt,repo_root, state);
+		super(repo_root, state);
+		set_socket(sckt);
 		this.server=server;
 	}
 	
@@ -24,8 +25,10 @@ public class ServerThread extends SyncAgent implements Runnable {
 		//now lets try to pull
 		boolean client_push = server.client_push();
 		if (client_push) {
+			server.pause_file_events=true;
 			boolean r = pull();
 			server.client_done_push();
+			server.pause_file_events=false;
 			
 		} else {
 			try {
@@ -38,6 +41,8 @@ public class ServerThread extends SyncAgent implements Runnable {
 		
 		//send(ControlMessage.yourturn());
 		listen(false);	
+		
+		close_socket();
 	}
 
 }

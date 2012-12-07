@@ -8,6 +8,7 @@ public class OpenBox {
 	
 	public static final int blocksize=128;
 	public static final long poll_delay=1000;
+	public static final long server_sync_delay=15000; 
 	
 	static boolean server=false;
 	static boolean client=false;
@@ -133,7 +134,17 @@ public class OpenBox {
 			host_port=port;
 			try {
 				Client c = new Client(host_name, host_port, repo_root,state);
-				c.run();
+				c.synchronize_with_server();
+				while (true) {
+					try {
+						Thread.sleep(OpenBox.server_sync_delay);
+						c.synchronize_with_server();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+						break;
+					}
+				}
 				//c.send("test");
 				//c.send("what");
 			} catch (UnknownHostException e) {

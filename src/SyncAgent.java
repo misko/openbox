@@ -32,16 +32,31 @@ public abstract class SyncAgent {
 	
 	
 	
-	public SyncAgent(Socket sckt, String repo_root, State state) throws IOException {
-		this.sckt=sckt;
+	public SyncAgent(String repo_root, State state) throws IOException {
 		this.repo_root=repo_root;
-		oos=new ObjectOutputStream(sckt.getOutputStream());
-		ois=new ObjectInputStream(sckt.getInputStream());
 		this.state=state;
-		
-
-		
 		//state.update_state(); //TODO could share this among multiple connections
+	}
+	
+	public void set_socket(Socket sckt) {
+		this.sckt=sckt;
+		try {
+			oos=new ObjectOutputStream(sckt.getOutputStream());
+			ois=new ObjectInputStream(sckt.getInputStream());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	
+	public void close_socket() {
+		try {
+			sckt.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public void send(Object o) throws IOException {
@@ -98,9 +113,10 @@ public abstract class SyncAgent {
 			send(ControlMessage.rstate());
 			//get back the other state
 			State other_state = (State)recieve();
-			state.reconsolidate(other_state);
+			State our_state = new State(state);
+			our_state.reconsolidate(other_state);
 			
-			System.out.println("MY STATE:\n" + state);
+			System.out.println("MY STATE:\n" + our_state);
 			System.out.println("OTHER STATE:\n"+ other_state);
 			
 			//check what we need to get, and ask for fchecks
@@ -110,7 +126,7 @@ public abstract class SyncAgent {
 		        Entry<String,FileState> pair = it.next();
 		        String repo_filename = pair.getKey();
 		        FileState other_filestate = pair.getValue();
-		        FileState our_filestate = state.m.get(repo_filename);
+		        FileState our_filestate = our_state.m.get(repo_filename);
 		        //ok lets figure out if the server should send it over to us!
 		        if (other_filestate.send) {
 		        	System.out.println("Requesting FCHECK, "+ other_filestate);
@@ -131,6 +147,7 @@ public abstract class SyncAgent {
 		        		fd.assemble_to(our_filestate.local_filename);
 		        		File f = new File(our_filestate.local_filename);
 		        		f.setLastModified(other_filestate.last_modified);
+		        		state.walk_file(f);
 		        	}
 		        }
 		        

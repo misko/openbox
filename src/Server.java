@@ -32,6 +32,8 @@ public class Server {
 	State state; //set to the last state that was syncd, either with remote or with local
 	
 	
+	public boolean pause_file_events=false;
+	
 	public boolean client_read() {
 		lock.lock();
 		if (!waiting_for_update && clients_pushing==0) {
@@ -103,8 +105,7 @@ public class Server {
         fm.setDelay(OpenBox.poll_delay);
         fm.setRecursive(true);  
         fm.addFile(fo_repo_root);  
-        fm.start();  
-
+        fm.start(); 
 	}
 	
 	synchronized public void listen() {
@@ -126,50 +127,34 @@ public class Server {
 
 	class ServerFileListener implements FileListener {
 
-		@Override
-		public void fileChanged(FileChangeEvent fce) throws Exception {
-			long time = new Date().getTime();
+		private void changeEvent(FileChangeEvent fce) {
 			FileObject fo = fce.getFile();
 			String repo_filename = fo.getName().getPath().replace(fo_repo_root.getName().getPath(), "");
 			System.out.println("Server has detected that "+ repo_filename+ " has been changed!");
-			
-			//ok, update the respect file in the state
-			System.out.println("State before: " + state);
-			state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
-			System.out.println("State after: " + state);
-			
+			//ok, update the respective file in the state
+			if (!pause_file_events) {
+				System.out.println("State before: " + state);
+				state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
+				System.out.println("State after: " + state);
+			} else {
+				System.out.println("Skipping change event for file "+repo_filename);
+			}
+		}
+		
+		@Override
+		public void fileChanged(FileChangeEvent fce) throws Exception {	
+			changeEvent(fce);
 		}
 
 		@Override
 		public void fileCreated(FileChangeEvent fce) throws Exception {
-			// TODO Auto-generated method stub
-			long time = new Date().getTime();
-			FileObject fo = fce.getFile();
-			String repo_filename = fo.getName().getPath().replace(fo_repo_root.getName().getPath(), "");
-			System.out.println("Server has detected that "+ repo_filename+ " has been created!");
-			
-			//ok, update the respect file in the state
-			System.out.println("State before: " + state);
-			state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
-			System.out.println("State after: " + state);
+			changeEvent(fce);
 			
 		}
 
 		@Override
 		public void fileDeleted(FileChangeEvent fce) throws Exception {
-			// TODO Auto-generated method stub
-			long time = new Date().getTime();
-			FileObject fo = fce.getFile();
-			String repo_filename = fo.getName().getPath().replace(fo_repo_root.getName().getPath(), "");
-			System.out.println("Server has detected that "+ repo_filename+ " has been deleted!");
-			
-			//ok, update the respect file in the state
-			System.out.println("State before: " + state);
-			state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
-			state.m.get(repo_filename);
-			
-			System.out.println("State after: " + state);
-			
+			changeEvent(fce);
 		}
 		
 	}

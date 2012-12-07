@@ -69,7 +69,7 @@ public class FileDelta {
 						//first see if there is a md5 collision
 						if (md5_hash.equals(fc.md5)) {
 							//pretty sure this is the piece
-							have_these.put(fc,  Block.BlockLocalRequest(md5_hash, current_offset, -1, h[0]));
+							have_these.put(fc,  Block.BlockLocalRequest(repo_filename, current_offset, -1, h[0]));
 							//have_these.put(fc, new Block(repo_filename,current_offset,true,h[1],h[0]));
 						}
 					}
@@ -91,11 +91,11 @@ public class FileDelta {
 				if (have_these.containsKey(fc)) {
 					//lets just use our block
 					b = have_these.get(fc).copy();
-					System.out.println("LOCAL\t"+fc);
+					System.out.println("LOCAL\t"+fc + "\n\t"+b);
 				} else {
 					//need to request this block
 					b=Block.BlockRemoteRequest(repo_filename, current_offset, -1, fc.size);
-					System.out.println("REMOTE\t"+fc);
+					System.out.println("REMOTE\t"+fc+ "\n\t"+b);
 					//b = new Block(repo_filename,current_offset,false,other_h[1],other_h[0]);
 				}
 				b.dest_offset = current_offset;
