@@ -85,17 +85,17 @@ public class FileDelta {
 			
 			//should know all the chunks we have, lets make a list
 			current_offset=0;
-			System.out.println("FD building");
+			//System.out.println("FD building");
 			for (FileChecksum fc : sums) {
 				Block b;
 				if (have_these.containsKey(fc)) {
 					//lets just use our block
 					b = have_these.get(fc).copy();
-					System.out.println("LOCAL\t"+fc + "\n\t"+b);
+					//System.out.println("LOCAL\t"+fc + "\n\t"+b);
 				} else {
 					//need to request this block
 					b=Block.BlockRemoteRequest(repo_filename, current_offset, -1, fc.size);
-					System.out.println("REMOTE\t"+fc+ "\n\t"+b);
+					//System.out.println("REMOTE\t"+fc+ "\n\t"+b);
 					//b = new Block(repo_filename,current_offset,false,other_h[1],other_h[0]);
 				}
 				b.dest_offset = current_offset;

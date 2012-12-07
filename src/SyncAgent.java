@@ -114,10 +114,10 @@ public abstract class SyncAgent {
 			//get back the other state
 			State other_state = (State)recieve();
 			State our_state = new State(state);
-			our_state.reconsolidate(other_state);
+			//System.out.println("MY STATE:\n" + our_state);
 			
-			System.out.println("MY STATE:\n" + our_state);
-			System.out.println("OTHER STATE:\n"+ other_state);
+			//System.out.println("OTHER STATE:\n"+ other_state);
+			our_state.reconsolidate(other_state);
 			
 			//check what we need to get, and ask for fchecks
 
@@ -129,31 +129,41 @@ public abstract class SyncAgent {
 		        FileState our_filestate = our_state.m.get(repo_filename);
 		        //ok lets figure out if the server should send it over to us!
 		        if (other_filestate.send) {
-		        	System.out.println("Requesting FCHECK, "+ other_filestate);
-		        	FileChecksum checksums[] = request_fcheck(other_filestate);
-		        	if (checksums==null) {
-		        		System.out.println("A serious error has occured. FCHECK recieved is null!");
+		        	if (!other_filestate.directory) {
+			        	//System.out.println("Requesting FCHECK, "+ other_filestate);
+			        	FileChecksum checksums[] = request_fcheck(other_filestate);
+			        	if (checksums==null) {
+			        		OpenBox.log(0,"ERROR: Skipping file, checksums are not avaliable!");
+			        	} else {
+			        		FileDelta fd = new FileDelta(our_filestate,checksums);
+			        		//System.out.println(fd);
+			        		//System.exit(1);
+			        		//now we have the file delta lets request to fill the blocks we need
+			        		for (Block b : fd.ll) {
+			        			b.data=null;
+			        			request_block(b);
+			        			assert(b.data!=null);
+			        		}
+			        		//lets try to assemble it now
+			        		File f = new File(our_filestate.local_filename);
+			        		f.getParentFile().mkdirs();
+			        		fd.assemble_to(our_filestate.local_filename);
+			        		f.setLastModified(other_filestate.last_modified);
+			        		state.walk_file(f);
+			        	}
 		        	} else {
-		        		FileDelta fd = new FileDelta(our_filestate,checksums);
-		        		System.out.println(fd);
-		        		//System.exit(1);
-		        		//now we have the file delta lets request to fill the blocks we need
-		        		for (Block b : fd.ll) {
-		        			b.data=null;
-		        			request_block(b);
-		        			assert(b.data!=null);
-		        		}
-		        		//lets try to assemble it now
-		        		fd.assemble_to(our_filestate.local_filename);
+		        		//its a directory
 		        		File f = new File(our_filestate.local_filename);
+		        		if (!f.exists()) {
+		        			f.mkdir();
+		        		}
 		        		f.setLastModified(other_filestate.last_modified);
-		        		state.walk_file(f);
 		        	}
 		        }
 		        
 		    }
 		    
-		    System.out.println("Client finished pull successfully!");
+		    //System.out.println("Client finished pull successfully!");
 			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -256,36 +266,36 @@ public abstract class SyncAgent {
 			while(true) {
 				ControlMessage cm = (ControlMessage)recieve();
 				if (cm.type==ControlMessage.RSTATE) {
-					System.out.println("GOT RSTATE");
+					//System.out.println("GOT RSTATE");
 					handle_rstate(cm);
 				} else if (cm.type==ControlMessage.RFCHECK) {
-					System.out.println("GOT RFCHECK");
+					//System.out.println("GOT RFCHECK");
 					handle_rfcheck(cm);
 				} else if (cm.type==ControlMessage.CLOSE) {
-					System.out.println("GOT CLOSE");
+					OpenBox.log(1,"GOT CLOSE");
 					send(ControlMessage.close());
-					System.out.println("SENT CLOSE");
+					OpenBox.log(1,"SENT CLOSE");
 					return cm;
 				} else if (cm.type==ControlMessage.YOUR_TURN) {
-					System.out.println("GOT YOUR TURN");
+					OpenBox.log(1,"GOT YOUR TURN");
 					return cm;
 				} else if (cm.type==ControlMessage.RBLOCK) {
-					System.out.println("GOT RBLOCK");
+					//System.out.println("GOT RBLOCK");
 					handle_rblock(cm);
 				} else if (cm.type==ControlMessage.PULL) {
-					System.out.println("GOT PULL Request");
+					OpenBox.log(1,"GOT PULL Request");
 					
 					//need to respond with YOUR TURN
 					if (accept_pull) {
 						send(ControlMessage.yourturn());
-						System.out.println("->accepted");
+						OpenBox.log(1,"->accepted");
 					} else {
 						send(ControlMessage.try_later());
-						System.out.println("->rejected");
+						OpenBox.log(1,"->rejected");
 						return cm;
 					}
 				} else {
-					System.out.println("Failed to handle! state while in listen, state="+ cm.type);
+					OpenBox.log(0,"Failed to handle! state while in listen, state="+ cm.type);
 					return null;
 				}
 			}

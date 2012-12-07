@@ -3,6 +3,8 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Date;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.vfs2.FileChangeEvent;
 import org.apache.commons.vfs2.FileListener;
@@ -15,7 +17,7 @@ import org.apache.commons.vfs2.impl.DefaultFileMonitor;
 
 public class Client extends SyncAgent {
 	FileObject fo_repo_root;
-	boolean pause_file_events=false;
+	final Lock state_lock = new ReentrantLock();
 	String host_name;
 	int host_port;
 	
@@ -38,22 +40,23 @@ public class Client extends SyncAgent {
 	public synchronized void synchronize_with_server() {
 		try {
 			//make a new connection
+			OpenBox.log(0, "Client is connecting to server " + host_name+":"+host_port);
 			Socket sckt = new Socket(host_name, host_port);
+			OpenBox.log(0, "Client has connected to server " + sckt.getLocalSocketAddress()+ " -> " + sckt.getRemoteSocketAddress());
 			//make the syncagent aware
 			set_socket(sckt);
 			
-			System.out.println("Client is trying to pull");
-			pause_file_events=true;
+			state_lock.lock();
 			boolean r = pull(); //first pull from the other side
-			System.out.println("Client is trying to listen");
+			
 			ControlMessage cm = listen(true); //then listen
 			assert(cm.type==ControlMessage.YOUR_TURN);
 			close();
-			pause_file_events=false;
+			state_lock.unlock();
 			
 			close_socket();
 			
-			System.out.println("Client is exiting \n"+state);
+			OpenBox.log(0, "Client has completed synchronization");
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -68,20 +71,18 @@ public class Client extends SyncAgent {
 		private void changeEvent(FileChangeEvent fce) {
 			FileObject fo = fce.getFile();
 			String repo_filename = fo.getName().getPath().replace(fo_repo_root.getName().getPath(), "");
-			System.out.println("Client has detected that "+ repo_filename+ " has been changed!");
+			OpenBox.log(1, "Client has detected that "+ repo_filename+ " has been changed!");
 			//ok, update the respective file in the state
-			if (!pause_file_events) {
-				System.out.println("State before: " + state);
-				boolean change = state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
-				System.out.println("State after: " + state);
-				if (change) {
-					synchronize_with_server();
-				} else {
-					System.out.println("Fake event fired, there is no change!");
-				}
+			state_lock.lock();
+			//System.out.println("State before: " + state);
+			boolean change = state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
+			//System.out.println("State after: " + state);
+			if (change) {
+				synchronize_with_server();
 			} else {
-				System.out.println("Skipping change event for file "+repo_filename);
+				OpenBox.log(1, "Fake event fired, there is no change!");
 			}
+			state_lock.unlock();
 		}
 		
 		@Override

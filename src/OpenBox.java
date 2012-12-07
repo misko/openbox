@@ -2,6 +2,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 
 public class OpenBox {
@@ -9,7 +11,8 @@ public class OpenBox {
 	public static final int blocksize=128;
 	public static final long poll_delay=1000;
 	public static final long server_sync_delay=15000; 
-	
+	public static int debug_level=1;
+	public static SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
 	static boolean server=false;
 	static boolean client=false;
 	
@@ -22,6 +25,11 @@ public class OpenBox {
 	static boolean set_repo_root=false;
 	static String repo_root;
 	
+	public static void log(int level, String s) {
+		if (debug_level>level) {
+			System.out.println(dateFormat.format(new Date()) + "\t"+s);
+		}
+	}
 	
 	public static void usage() {
 		String program_name="java OpenBox";

@@ -13,7 +13,7 @@ public class ServerThread extends SyncAgent implements Runnable {
 	
 	@Override
 	public void run() {
-		System.out.println("New server thread is running!");
+		OpenBox.log(0, "Spawned new server thread for connection from " + sckt.getRemoteSocketAddress());
 		//lets handle the current connection
 		
 		boolean client_read = server.client_read();
@@ -23,13 +23,11 @@ public class ServerThread extends SyncAgent implements Runnable {
 		}
 
 		//now lets try to pull
+		server.state_lock.lock();
 		boolean client_push = server.client_push();
 		if (client_push) {
-			server.pause_file_events=true;
 			boolean r = pull();
 			server.client_done_push();
-			server.pause_file_events=false;
-			
 		} else {
 			try {
 				send(ControlMessage.yourturn());
@@ -38,6 +36,7 @@ public class ServerThread extends SyncAgent implements Runnable {
 				e.printStackTrace();
 			}
 		}
+		server.state_lock.unlock();
 		
 		//send(ControlMessage.yourturn());
 		listen(false);	

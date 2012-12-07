@@ -51,6 +51,10 @@ public class FileState implements Serializable {
 	 * Indicates the time of earliest deletion, since we are polling this is not exact
 	 */
 	long earliest_deleted_time;
+	/**
+	 * True iff this is a directory
+	 */
+	boolean directory;
 	
 	public FileState(FileState fs) {
 		this.repo_filename=fs.repo_filename;
@@ -63,6 +67,7 @@ public class FileState implements Serializable {
 		this.remote_missing=fs.remote_missing;
 		this.deleted=fs.deleted;
 		this.earliest_deleted_time=fs.earliest_deleted_time;
+		this.directory=fs.directory;
 	}
 	
 	/**
@@ -71,17 +76,20 @@ public class FileState implements Serializable {
 	 * @param repo_filename The filename with respect to repository root
 	 * @param local_filename The filename with respect to local file system
 	 */
-	public FileState(String repo_filename, String local_filename) {
+	public FileState(String repo_filename, String local_filename, boolean directory) {
 		this.repo_filename=repo_filename;
 		this.local_filename=local_filename;
 		this.deleted=false;
+		this.directory=directory;
 		if (local_filename==null) {
 			local_missing=true;
 		} else {
 			try {
-				sha1=SHA1.ChecksumFile(local_filename);
 				File file = new File(local_filename);
-				size = file.length();
+				if (!directory) {
+					sha1=SHA1.ChecksumFile(local_filename);
+					size = file.length();
+				}
 				last_modified=file.lastModified();
 				
 				local_missing=false;
@@ -104,18 +112,20 @@ public class FileState implements Serializable {
 		FileState other = (FileState)othero;
 		if (!repo_filename.equals(other.repo_filename)) {
 			return false;
-		} else if (!sha1.equals(other.sha1)) {
+		} else if (directory!=other.directory) {
+			return false;
+		} else if (!directory && !sha1.equals(other.sha1)) {
 			return false;
 		} else if (last_modified!=other.last_modified) {
 			return false;
-		} else if (size!=other.size) {
+		} else if (!directory && size!=other.size) {
 			return false;
 		}
 		return true;
 	}
 	
 	public String toString() {
-		return "Repo: "+repo_filename + " , Local: "+ local_filename + " , LastModified: " + (new Date(last_modified)) + " , send: "  + (send ? "Y" : "N") + " , deleted: " + (deleted ? "Y" : "N");
+		return "Repo: "+repo_filename + " , Local: "+ local_filename + " , LastModified: " + (new Date(last_modified)) + " , send: "  + (send ? "Y" : "N") + " , deleted: " + (deleted ? "Y" : "N") + " , directory: " + (directory ? "Y" : "N");
 	}
 	
 }

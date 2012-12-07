@@ -49,64 +49,52 @@ public class State implements Serializable {
 	 * @return True if and only if there has been a change in state detected
 	 */
 	public boolean walk_file(File f) {
-		String r_filename;
+		boolean change=false;
 		try {
-			r_filename = f.getCanonicalPath().replace(repo_path, "");
-			System.out.println("Walking: " + r_filename);
+			String local_filename = f.getCanonicalPath();
+			String repo_filename=local_filename.replace(repo_path, "");
+			if (!f.exists()) {
+				//the file does not exist need to mark it as deleted
+					assert(m.containsKey(repo_filename));
+					FileState fs = m.get(repo_filename);
+					if (fs.deleted==false) {
+						fs.deleted=true;
+						fs.earliest_deleted_time=(new Date()).getTime()-OpenBox.poll_delay;
+						change=true;
+					}
+			} else if (f.isFile() || f.isDirectory()) {
+					FileState current_fs = new FileState(repo_filename, local_filename,f.isDirectory());
+					if (m.containsKey(repo_filename)) {
+						if (!m.get(repo_filename).equals(current_fs)) {
+							//has the key but checksum changed
+							change=true;
+						} else {
+							//checksum is the same
+						}
+					} else {
+						//does not have this key
+						change=true;
+					}
+					if (!f.isDirectory() || !f.getCanonicalPath().equals(repo_path)) {
+						m.put(repo_filename, current_fs);
+					}
+					//if its a directory recurse
+					if (f.isDirectory()) {
+						File listFile[] = f.listFiles();
+						if (listFile != null) {
+							for (int i = 0; i < listFile.length; i++) {
+								change = walk_file(listFile[i]) || change;
+							}
+						}
+					}
+			} else {
+				OpenBox.log(0,"ERROR: File is not a file or directory, "+ local_filename);
+			}
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-		boolean change=false;
-		if (!f.exists()) {
-			//the file does not exist need to mark it as deleted
-			try {
-				String repo_filename = f.getCanonicalPath().replace(repo_path, "");
-				assert(m.containsKey(repo_filename));
-				FileState fs = m.get(repo_filename);
-				if (fs.deleted==false) {
-					fs.deleted=true;
-					fs.earliest_deleted_time=(new Date()).getTime()-OpenBox.poll_delay;
-					change=true;
-				}
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			
-		} else if (f.isDirectory()) {
-			File listFile[] = f.listFiles();
-			System.out.println("There are "+listFile.length);
-			if (listFile != null) {
-				for (int i = 0; i < listFile.length; i++) {
-					change = walk_file(listFile[i]) || change;
-				}
-			}
-		} else if (f.isFile()) {
-			try {
-				String local_filename = f.getCanonicalPath();
-				String repo_filename=local_filename.replace(repo_path, "");
-				FileState current_fs = new FileState(repo_filename, local_filename);
-				//System.out.println(filename + " " + Checksum.ChecksumFile(filename));
-				if (m.containsKey(repo_filename)) {
-					if (!m.get(repo_filename).equals(current_fs)) {
-						//has the key but checksum changed
-						change=true;
-					} else {
-						//checksum is the same
-					}
-				} else {
-					//does not have this key
-					change=true;
-				}
-				m.put(repo_filename, current_fs);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		} else {
-			System.out.println("Something bad");
-		}
+
 		return change;
 	}
 	
@@ -124,7 +112,7 @@ public class State implements Serializable {
 	 * @return True if and only if a change has been detected
 	 */
 	public boolean update_state() { 
-		System.out.println("Updating state");
+		OpenBox.log(0,"Updating state");
 		//open the directory
 		File dir = new File(repo_path);
 		return walk_file(dir);
@@ -167,7 +155,7 @@ public class State implements Serializable {
         	FileState other_filestate = pairs.getValue();
 	        if (!m.containsKey(repo_filename)) {
 	        	//we dont have the file
-	        	FileState new_filestate = new FileState(repo_filename,repo_path+File.separatorChar+repo_filename);
+	        	FileState new_filestate = new FileState(repo_filename,repo_path+File.separatorChar+repo_filename,other_filestate.directory);
 	        	other_filestate.send=true;
 	        	m.put(repo_filename,new_filestate);
 	        	diff=true;
@@ -183,8 +171,9 @@ public class State implements Serializable {
 		        	diff=true;
 	        	} else {
 	        		//the modification times are the same!
-	        		if (!our_filestate.sha1.equals(other_filestate.sha1)) {
-	        			System.out.println("A serious error has occured. Modification times are same, checksum is different!");
+	        		//System.out.println(our_filestate);
+	        		if (!our_filestate.directory && !our_filestate.sha1.equals(other_filestate.sha1)) {
+	        			OpenBox.log(0,"ERROR: Modification times are same, checksum is different! " + our_filestate.local_filename);
 	        		}
 	        	}
 	        }
@@ -198,7 +187,7 @@ public class State implements Serializable {
 	        if (!other_state.m.containsKey(repo_filename)) {
 	        	//we dont have the file
 	        	our_filestate.send=true;
-	        	FileState new_filestate = new FileState(repo_filename,null);
+	        	FileState new_filestate = new FileState(repo_filename,null,our_filestate.directory);
 	        	other_state.m.put(repo_filename,new_filestate);
 	        	diff=true;
 	        }
@@ -223,9 +212,9 @@ public class State implements Serializable {
             		our_filestate.deleted=true;
             		//make sure the file is now gone
             		File f = new File(our_filestate.local_filename);
-            		boolean  r =f.delete();
+            		boolean r =f.delete();
             		if (!r) {
-            			System.out.println("Permission denied to remove file!" + our_filestate.local_filename);
+            			OpenBox.log(0,"Permission denied to remove file!\t" + our_filestate.local_filename+"\n"+this);
             		}
             		our_filestate.send=false;
             		other_filestate.send=false;

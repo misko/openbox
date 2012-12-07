@@ -31,8 +31,8 @@ public class Server {
 	
 	State state; //set to the last state that was syncd, either with remote or with local
 	
-	
-	public boolean pause_file_events=false;
+
+	final Lock state_lock = new ReentrantLock();
 	
 	public boolean client_read() {
 		lock.lock();
@@ -112,6 +112,7 @@ public class Server {
 		//make the server listen
 		Socket sckt;
 		try {
+			OpenBox.log(0, "Server is listening on " + server_socket.getLocalSocketAddress());
 			sckt = server_socket.accept();
 			//need to pass in a copy of the state!
 			State thread_state = new State(state);
@@ -130,15 +131,14 @@ public class Server {
 		private void changeEvent(FileChangeEvent fce) {
 			FileObject fo = fce.getFile();
 			String repo_filename = fo.getName().getPath().replace(fo_repo_root.getName().getPath(), "");
-			System.out.println("Server has detected that "+ repo_filename+ " has been changed!");
+			//System.out.println("Server has detected that "+ repo_filename+ " has been changed!");
 			//ok, update the respective file in the state
-			if (!pause_file_events) {
-				System.out.println("State before: " + state);
-				state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
-				System.out.println("State after: " + state);
-			} else {
-				System.out.println("Skipping change event for file "+repo_filename);
-			}
+			state_lock.lock();
+			//System.out.println("State before: " + state);
+			System.out.println("Event for "+repo_filename);
+			state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
+			//System.out.println("State after: " + state);
+			state_lock.unlock();
 		}
 		
 		@Override
