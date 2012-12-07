@@ -115,6 +115,9 @@ public class Server {
 			OpenBox.log(0, "Server is listening on " + server_socket.getLocalSocketAddress());
 			sckt = server_socket.accept();
 			//need to pass in a copy of the state!
+			state_lock.lock();
+			state.check_for_zombies();
+			state_lock.unlock();
 			State thread_state = new State(state);
 			ServerThread st = new ServerThread(this,sckt,repo_root,thread_state);
 			Thread t = new Thread(st);
@@ -137,6 +140,7 @@ public class Server {
 			//System.out.println("State before: " + state);
 			System.out.println("Event for "+repo_filename);
 			state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
+			state.check_for_zombies();
 			//System.out.println("State after: " + state);
 			state_lock.unlock();
 		}

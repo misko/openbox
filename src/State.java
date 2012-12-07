@@ -43,6 +43,25 @@ public class State implements Serializable {
 	    }
 	}
 
+	
+	public boolean check_for_zombies() {
+		boolean change=false;
+	    Iterator<Entry<String, FileState>> it = m.entrySet().iterator();
+	    while (it.hasNext()) {
+	        Entry<String,FileState> pair = it.next();
+	        String repo_filename = pair.getKey();
+	        FileState fs=pair.getValue();
+	        File f = new File(fs.local_filename);
+	        if (!fs.deleted && !f.exists()) {
+	        	OpenBox.log(0, "ZOMBIE: "+ fs.local_filename);
+	        	fs.earliest_deleted_time=(new Date()).getTime()-OpenBox.poll_delay;
+	        	fs.deleted=true;
+	        	change=true;
+	        }
+	    }
+	    return change;
+	}
+	
 	/**
 	 * Recursively traverse the given file and update the current state
 	 * @param f The file to traverse

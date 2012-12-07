@@ -47,6 +47,7 @@ public class Client extends SyncAgent {
 			set_socket(sckt);
 			
 			state_lock.lock();
+			state.check_for_zombies();
 			boolean r = pull(); //first pull from the other side
 			
 			ControlMessage cm = listen(true); //then listen
@@ -76,6 +77,7 @@ public class Client extends SyncAgent {
 			state_lock.lock();
 			//System.out.println("State before: " + state);
 			boolean change = state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
+			change = state.check_for_zombies() || change;
 			//System.out.println("State after: " + state);
 			if (change) {
 				synchronize_with_server();
