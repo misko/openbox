@@ -5,11 +5,12 @@ import java.net.UnknownHostException;
 
 public class Client extends SyncAgent {
 
-	public Client(String host_name, int host_port, String repo_root) throws UnknownHostException, IOException {
-		super(new Socket(host_name, host_port),repo_root);
+	
+	
+	public Client(String host_name, int host_port, String repo_root, State state) throws UnknownHostException, IOException {
+		super(new Socket(host_name, host_port),repo_root, state);
 	}
 	
-
 	
 	public void run() {
 		System.out.println("Client is trying to pull");

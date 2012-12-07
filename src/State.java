@@ -28,44 +28,82 @@ public class State implements Serializable {
 	 * The path for the root of the repository on the local filesystem
 	 */
 	String repo_path;
+	
+	
+	public State(State s) {
+		this.last_sync=s.last_sync;
+		this.repo_path=s.repo_path;
+		this.m =  new HashMap<String,FileState>();
+	    Iterator<Entry<String, FileState>> it = s.m.entrySet().iterator();
+	    while (it.hasNext()) {
+	        Entry<String,FileState> pair = it.next();
+	        String repo_filename = pair.getKey();
+	        FileState fs=pair.getValue();
+	        m.put(repo_filename, new FileState(fs));
+	    }
+	}
 
 	/**
-	 * Recursively traverse the directory and update the current State
-	 * @param dir The root directory to traverse
+	 * Recursively traverse the given file and update the current state
+	 * @param f The file to traverse
 	 * @return True if and only if there has been a change in state detected
 	 */
-	private boolean walk_dir(File dir) {
-		//list the files
+	public boolean walk_file(File f) {
+		String r_filename;
+		try {
+			r_filename = f.getCanonicalPath().replace(repo_path, "");
+			System.out.println("Walking: " + r_filename);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 		boolean change=false;
-		File listFile[] = dir.listFiles();
-		if (listFile != null) {
-			for (int i = 0; i < listFile.length; i++) {
-				if (listFile[i].isDirectory()) {
-					change = change || walk_dir(listFile[i]);
-				} else {
-					try {
-						String local_filename = listFile[i].getCanonicalPath();
-						String repo_filename=local_filename.replaceFirst(Pattern.quote(repo_path), "");
-						FileState current_fs = new FileState(repo_filename, local_filename);
-						//System.out.println(filename + " " + Checksum.ChecksumFile(filename));
-						if (m.containsKey(repo_filename)) {
-							if (!m.get(repo_filename).equals(current_fs)) {
-								//has the key but checksum changed
-								change=true;
-							} else {
-								//checksum is the same
-							}
-						} else {
-							//does not have this key
-							change=true;
-						}
-						m.put(repo_filename, current_fs);
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+		if (!f.exists()) {
+			System.out.println("NOT EXIST");
+			//the file does not exist need to mark it as deleted
+			try {
+				String repo_filename = f.getCanonicalPath().replace(repo_path, "");
+				assert(m.containsKey(repo_filename));
+				FileState fs = m.get(repo_filename);
+				fs.deleted=true;
+				fs.earliest_deleted_time=(new Date()).getTime()-OpenBox.poll_delay;
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		} else if (f.isDirectory()) {
+			File listFile[] = f.listFiles();
+			System.out.println("There are "+listFile.length);
+			if (listFile != null) {
+				for (int i = 0; i < listFile.length; i++) {
+					change = walk_file(listFile[i]) || change;
 				}
 			}
+		} else if (f.isFile()) {
+			try {
+				String local_filename = f.getCanonicalPath();
+				String repo_filename=local_filename.replace(repo_path, "");
+				FileState current_fs = new FileState(repo_filename, local_filename);
+				//System.out.println(filename + " " + Checksum.ChecksumFile(filename));
+				if (m.containsKey(repo_filename)) {
+					if (!m.get(repo_filename).equals(current_fs)) {
+						//has the key but checksum changed
+						change=true;
+					} else {
+						//checksum is the same
+					}
+				} else {
+					//does not have this key
+					change=true;
+				}
+				m.put(repo_filename, current_fs);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} else {
+			System.out.println("Something bad");
 		}
 		return change;
 	}
@@ -87,7 +125,7 @@ public class State implements Serializable {
 		System.out.println("Updating state");
 		//open the directory
 		File dir = new File(repo_path);
-		return walk_dir(dir);
+		return walk_file(dir);
 	}
 	
 	public String toString() {
@@ -162,6 +200,44 @@ public class State implements Serializable {
 	        	other_state.m.put(repo_filename,new_filestate);
 	        	diff=true;
 	        }
+	    }
+	    
+	    //check which have been deleted on both sides
+	    assert(m.size()==other_state.m.size());
+	    it = other_state.m.entrySet().iterator();
+	    while (it.hasNext()) {
+	        Entry<String,FileState> pairs = it.next();
+	        String repo_filename = pairs.getKey();
+        	FileState other_filestate = pairs.getValue();
+        	FileState our_filestate = m.get(repo_filename);
+        	if (other_filestate.deleted && our_filestate.deleted) {
+        		//everything is fine
+        	} else if (other_filestate.deleted) {
+        		//means that not deleted on our side check to see last modified time
+        		if (our_filestate.last_modified>other_filestate.earliest_deleted_time) {
+        			//we let the file propagate the file
+        			other_filestate.deleted=false;
+        		} else {
+            		our_filestate.deleted=true;
+            		//make sure the file is now gone
+            		File f = new File(our_filestate.local_filename);
+            		boolean  r =f.delete();
+            		if (!r) {
+            			System.out.println("Permission denied to remove file!" + our_filestate.local_filename);
+            		}
+            		our_filestate.send=false;
+            		other_filestate.send=false;
+        		}
+        	} else if (our_filestate.deleted) {
+        		if (other_filestate.last_modified>our_filestate.earliest_deleted_time) {
+        			//let the file propagate
+        			our_filestate.deleted=false;
+        		} else {
+        			other_filestate.deleted=true;
+        			our_filestate.send=false;
+        			other_filestate.send=false;
+        		}
+        	}
 	    }
 	    
 	    return diff;

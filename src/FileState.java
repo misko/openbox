@@ -42,7 +42,28 @@ public class FileState implements Serializable {
 	/**
 	 * This flag is set if the remote copy of this file is missing/deleted
 	 */
-	boolean repo_missing;
+	boolean remote_missing;
+	/** 
+	 * Indicates if this file has been deleted
+	 */
+	boolean deleted;
+	/**
+	 * Indicates the time of earliest deletion, since we are polling this is not exact
+	 */
+	long earliest_deleted_time;
+	
+	public FileState(FileState fs) {
+		this.repo_filename=fs.repo_filename;
+		this.local_filename=fs.local_filename;
+		this.last_modified=fs.last_modified;
+		this.size=fs.size;
+		this.sha1=fs.sha1;
+		this.send=fs.send;
+		this.local_missing=fs.local_missing;
+		this.remote_missing=fs.remote_missing;
+		this.deleted=fs.deleted;
+		this.earliest_deleted_time=fs.earliest_deleted_time;
+	}
 	
 	/**
 	 * Createa filestate object for the given filename.
@@ -53,6 +74,7 @@ public class FileState implements Serializable {
 	public FileState(String repo_filename, String local_filename) {
 		this.repo_filename=repo_filename;
 		this.local_filename=local_filename;
+		this.deleted=false;
 		if (local_filename==null) {
 			local_missing=true;
 		} else {
@@ -93,7 +115,7 @@ public class FileState implements Serializable {
 	}
 	
 	public String toString() {
-		return "Repo: "+repo_filename + " , Local: "+ local_filename + " , LastModified: " + (new Date(last_modified)) + " , send: "  + (send ? "Y" : "N");
+		return "Repo: "+repo_filename + " , Local: "+ local_filename + " , LastModified: " + (new Date(last_modified)) + " , send: "  + (send ? "Y" : "N") + " , deleted: " + (deleted ? "Y" : "N");
 	}
 	
 }

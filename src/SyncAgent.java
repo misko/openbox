@@ -10,8 +10,15 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.commons.vfs2.FileChangeEvent;
+import org.apache.commons.vfs2.FileListener;
+import org.apache.commons.vfs2.FileObject;
+import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.VFS;
+import org.apache.commons.vfs2.impl.DefaultFileMonitor;
 
-public class SyncAgent {
+
+public abstract class SyncAgent {
 	
 	
 	Socket sckt;
@@ -24,13 +31,17 @@ public class SyncAgent {
 	public final int blocksize = 1024;
 	
 	
-	public SyncAgent(Socket sckt, String repo_root) throws IOException {
+	
+	public SyncAgent(Socket sckt, String repo_root, State state) throws IOException {
 		this.sckt=sckt;
 		this.repo_root=repo_root;
 		oos=new ObjectOutputStream(sckt.getOutputStream());
 		ois=new ObjectInputStream(sckt.getInputStream());
-		state = new State(repo_root);
-		state.update_state(); //TODO could share this among multiple connections
+		this.state=state;
+		
+
+		
+		//state.update_state(); //TODO could share this among multiple connections
 	}
 	
 	public void send(Object o) throws IOException {
@@ -288,4 +299,5 @@ public class SyncAgent {
 		return false;
 		
 	}
+	
 }

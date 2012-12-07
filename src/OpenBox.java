@@ -7,6 +7,7 @@ import java.net.UnknownHostException;
 public class OpenBox {
 	
 	public static final int blocksize=128;
+	public static final long poll_delay=1000;
 	
 	static boolean server=false;
 	static boolean client=false;
@@ -112,11 +113,14 @@ public class OpenBox {
 			System.exit(1);
 		}
 		
+		//lets make the initial state
+		State state = new State(repo_root);
+		state.update_state();
 		if (server) {
 			listen_port=port;
 			Server s;
 			try {
-				s = new Server(listen_port, repo_root);
+				s = new Server(listen_port, repo_root,state);
 
 				while (true) {
 					s.listen();
@@ -128,7 +132,7 @@ public class OpenBox {
 		} else if (client) {
 			host_port=port;
 			try {
-				Client c = new Client(host_name, host_port, repo_root);
+				Client c = new Client(host_name, host_port, repo_root,state);
 				c.run();
 				//c.send("test");
 				//c.send("what");

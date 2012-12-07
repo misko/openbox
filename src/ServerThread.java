@@ -5,8 +5,8 @@ import java.net.Socket;
 public class ServerThread extends SyncAgent implements Runnable {
 	Server server;
 	
-	public ServerThread(Server server, Socket sckt, String repo_root) throws IOException {
-		super(sckt,repo_root);
+	public ServerThread(Server server, Socket sckt, String repo_root, State state) throws IOException {
+		super(sckt,repo_root, state);
 		this.server=server;
 	}
 	
