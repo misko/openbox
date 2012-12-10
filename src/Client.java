@@ -13,7 +13,8 @@ import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.VFS;
 import org.apache.commons.vfs2.impl.DefaultFileMonitor;
 
-
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 public class Client extends SyncAgent {
 	FileObject fo_repo_root;
@@ -41,7 +42,12 @@ public class Client extends SyncAgent {
 		try {
 			//make a new connection
 			OpenBox.log(0, "Client is connecting to server " + host_name+":"+host_port);
-			Socket sckt = new Socket(host_name, host_port);
+			
+			//Change regular Socket, instead use SSLSocketFactory (Dec 9, 2012)
+			//Socket sckt = new Socket(host_name, host_port);
+			SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+			Socket sckt = sslsocketfactory.createSocket(host_name, host_port);
+			
 			OpenBox.log(0, "Client has connected to server " + sckt.getLocalSocketAddress()+ " -> " + sckt.getRemoteSocketAddress());
 			//make the syncagent aware
 			set_socket(sckt);

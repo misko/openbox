@@ -14,6 +14,9 @@ import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.VFS;
 import org.apache.commons.vfs2.impl.DefaultFileMonitor;
 
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
 
 
 public class Server {
@@ -94,8 +97,11 @@ public class Server {
 		this.repo_root=repo_root;
 		this.state = state; 
 		
-		//try to bind the socket
-		server_socket = new ServerSocket(listen_port);
+		//SSLServerSocketFactory (Dec 9, 2012)
+        SSLServerSocketFactory sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+		
+		//try to bind the socket (update Dec 9,2012)
+		server_socket = sslserversocketfactory.createServerSocket(listen_port);
 		
 		//lets try to listen on the repo folder
 		FileSystemManager fsManager = VFS.getManager(); 

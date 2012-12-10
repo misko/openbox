@@ -126,6 +126,11 @@ public class OpenBox {
 		State state = new State(repo_root);
 		state.update_state();
 		if (server) {
+			
+			//set System.setProperty (Dec 9, 2012)
+			System.setProperty("javax.net.ssl.keyStore", repo_root+"/mySrvKeystore");
+	        System.setProperty("javax.net.ssl.keyStorePassword", "123456");
+			
 			listen_port=port;
 			Server s;
 			try {
@@ -139,6 +144,11 @@ public class OpenBox {
 				e.printStackTrace();
 			}
 		} else if (client) {
+			
+			//set System.setProperty (Dec 9, 2012)
+			System.setProperty("javax.net.ssl.trustStore", repo_root+"/mySrvKeystore");
+	        System.setProperty("javax.net.ssl.trustStorePassword", "123456");
+			
 			host_port=port;
 			try {
 				Client c = new Client(host_name, host_port, repo_root,state);
