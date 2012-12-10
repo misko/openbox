@@ -98,7 +98,7 @@ public class Server {
 		this.state = state; 
 		
 		//SSLServerSocketFactory (Dec 9, 2012)
-        SSLServerSocketFactory sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+		SSLServerSocketFactory sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 		
 		//try to bind the socket (update Dec 9,2012)
 		server_socket = sslserversocketfactory.createServerSocket(listen_port);
@@ -106,12 +106,12 @@ public class Server {
 		//lets try to listen on the repo folder
 		FileSystemManager fsManager = VFS.getManager(); 
 		fo_repo_root = fsManager.resolveFile(repo_root); 
-        ServerFileListener sfl = new ServerFileListener();  
-        DefaultFileMonitor fm = new DefaultFileMonitor(sfl);  
-        fm.setDelay(OpenBox.poll_delay);
-        fm.setRecursive(true);  
-        fm.addFile(fo_repo_root);  
-        fm.start(); 
+		ServerFileListener sfl = new ServerFileListener();  
+		DefaultFileMonitor fm = new DefaultFileMonitor(sfl);  
+		fm.setDelay(OpenBox.poll_delay);
+		fm.setRecursive(true);  
+		fm.addFile(fo_repo_root);  
+		fm.start(); 
 	}
 	
 	synchronized public void listen() {

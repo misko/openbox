@@ -49,6 +49,7 @@ public class Client extends SyncAgent {
 			Socket sckt = sslsocketfactory.createSocket(host_name, host_port);
 			
 			OpenBox.log(0, "Client has connected to server " + sckt.getLocalSocketAddress()+ " -> " + sckt.getRemoteSocketAddress());
+			
 			//make the syncagent aware
 			set_socket(sckt);
 			

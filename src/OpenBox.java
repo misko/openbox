@@ -129,7 +129,7 @@ public class OpenBox {
 			
 			//set System.setProperty (Dec 9, 2012)
 			System.setProperty("javax.net.ssl.keyStore", repo_root+"/mySrvKeystore");
-	        System.setProperty("javax.net.ssl.keyStorePassword", "123456");
+			System.setProperty("javax.net.ssl.keyStorePassword", "123456");
 			
 			listen_port=port;
 			Server s;
@@ -147,7 +147,7 @@ public class OpenBox {
 			
 			//set System.setProperty (Dec 9, 2012)
 			System.setProperty("javax.net.ssl.trustStore", repo_root+"/mySrvKeystore");
-	        System.setProperty("javax.net.ssl.trustStorePassword", "123456");
+			System.setProperty("javax.net.ssl.trustStorePassword", "123456");
 			
 			host_port=port;
 			try {
