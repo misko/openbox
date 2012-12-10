@@ -63,11 +63,28 @@ public class FileState implements Serializable {
 		this.size=fs.size;
 		this.sha1=fs.sha1;
 		this.send=fs.send;
-		this.local_missing=fs.local_missing;
-		this.remote_missing=fs.remote_missing;
 		this.deleted=fs.deleted;
 		this.earliest_deleted_time=fs.earliest_deleted_time;
 		this.directory=fs.directory;
+	}
+	
+	public static FileState from_file(String repo_filename, String local_filename, boolean directory) {
+		FileState fs = new FileState(repo_filename,local_filename,directory);
+		File file = new File(local_filename);
+		if (!file.exists()) {
+			return fs;
+		}
+		try {
+			if (!directory) {
+				fs.sha1=SHA1.ChecksumFile(local_filename);
+				fs.size = file.length();
+			}
+			fs.last_modified=file.lastModified();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return fs;
 	}
 	
 	/**
@@ -76,27 +93,11 @@ public class FileState implements Serializable {
 	 * @param repo_filename The filename with respect to repository root
 	 * @param local_filename The filename with respect to local file system
 	 */
-	public FileState(String repo_filename, String local_filename, boolean directory) {
+	private FileState(String repo_filename, String local_filename, boolean directory) {
 		this.repo_filename=repo_filename;
 		this.local_filename=local_filename;
 		this.deleted=false;
 		this.directory=directory;
-		if (local_filename==null) {
-			local_missing=true;
-		} else {
-			try {
-				File file = new File(local_filename);
-				if (!directory) {
-					sha1=SHA1.ChecksumFile(local_filename);
-					size = file.length();
-				}
-				last_modified=file.lastModified();
-				
-				local_missing=false;
-			} catch (IOException e) {
-				local_missing=true;
-			}
-		}
 	}
 	
 	/**

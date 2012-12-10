@@ -1,3 +1,8 @@
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.io.Serializable;
 
 /**
@@ -82,6 +87,24 @@ public class Block implements Serializable {
 		b.data=data;
 		return b;
 		
+	}
+	
+	public long write_to_file(String local_filename_out) {
+		try {			
+			RandomAccessFile raf = new RandomAccessFile(local_filename_out,"rws");
+			assert(size<(1<<15)); //casting to int, just make sure
+			raf.seek(dest_offset);
+			raf.write(data);
+			raf.close();
+			return size;
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return -1;
 	}
 	
 	

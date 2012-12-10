@@ -7,8 +7,11 @@ import java.io.RandomAccessFile;
 import java.net.Socket;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.vfs2.FileChangeEvent;
 import org.apache.commons.vfs2.FileListener;
@@ -74,7 +77,8 @@ public abstract class SyncAgent {
 		byte by[]=null;
 		try {
 			raf = new RandomAccessFile(state.repo_path + File.separatorChar + b.repo_filename,"r");
-			assert(b.size<(1>>15)); //casting to int, just make sure
+			//System.out.println(b);
+			assert(b.size<(1<<15)); //casting to int, just make sure
 			by = new byte[(int) b.size];
 			raf.seek(b.src_offset);
 			int r = raf.read(by);
@@ -99,29 +103,56 @@ public abstract class SyncAgent {
 		return by;
 	}
 	
+	public void delete_file(File f ) {
+		if (f.isDirectory()) {
+			for (File c : f.listFiles()) {
+				delete_file(c);
+			}
+		}
+		f.delete();
+	}
 	
-	public boolean pull() {
+	public State pull() {
+		State our_state=null;
 		try {
 			//send a pull to other side
 			send(ControlMessage.pull()); 
 			ControlMessage cm = (ControlMessage)recieve();
 			if (cm.type==ControlMessage.TRY_LATER) {
-				return false;
+				return our_state;
 			}
 			
 			//send a request for state
 			send(ControlMessage.rstate());
 			//get back the other state
 			State other_state = (State)recieve();
-			State our_state = new State(state);
+			our_state = new State(state);
 			//System.out.println("MY STATE:\n" + our_state);
 			
 			//System.out.println("OTHER STATE:\n"+ other_state);
 			our_state.reconsolidate(other_state);
+			//System.out.println("MY STATE AFTER:\n" + our_state);
 			
-			//check what we need to get, and ask for fchecks
-
+			
+			//delete everything we should delete
 		    Iterator<Entry<String, FileState>> it = other_state.m.entrySet().iterator();
+		    while (it.hasNext()) {
+		        Entry<String,FileState> pair = it.next();
+		        String repo_filename = pair.getKey();
+		        FileState other_filestate = pair.getValue();
+		        FileState our_filestate = our_state.m.get(repo_filename);
+		        File f = new File(our_filestate.local_filename);
+		        if (our_filestate.deleted && f.exists()) {
+		        	OpenBox.log(0, "Trying to delete file "+ our_filestate.repo_filename);
+		        	delete_file(f);
+		        	f = new File(our_filestate.local_filename);
+		        	if (f.exists()) {
+		        		OpenBox.log(0, "\t->Failed to delete file " + our_filestate.local_filename);
+		        	}
+		        }
+		    }
+		  //check what we need to get, and ask for fchecks
+		    it = other_state.m.entrySet().iterator();
 		    while (it.hasNext()) {
 		        Entry<String,FileState> pair = it.next();
 		        String repo_filename = pair.getKey();
@@ -129,27 +160,64 @@ public abstract class SyncAgent {
 		        FileState our_filestate = our_state.m.get(repo_filename);
 		        //ok lets figure out if the server should send it over to us!
 		        if (other_filestate.send) {
+		        	assert(other_filestate.deleted==false);
 		        	if (!other_filestate.directory) {
 			        	//System.out.println("Requesting FCHECK, "+ other_filestate);
 			        	FileChecksum checksums[] = request_fcheck(other_filestate);
 			        	if (checksums==null) {
-			        		OpenBox.log(0,"ERROR: Skipping file, checksums are not avaliable!");
+			        		OpenBox.log(0,"ERROR: Skipping file, checksums are not avaliable! " + other_filestate.repo_filename);
 			        	} else {
 			        		FileDelta fd = new FileDelta(our_filestate,checksums);
 			        		//System.out.println(fd);
 			        		//System.exit(1);
-			        		//now we have the file delta lets request to fill the blocks we need
-			        		for (Block b : fd.ll) {
-			        			b.data=null;
-			        			request_block(b);
-			        			assert(b.data!=null);
-			        		}
-			        		//lets try to assemble it now
+			        		//make sure the path here exists
 			        		File f = new File(our_filestate.local_filename);
 			        		f.getParentFile().mkdirs();
-			        		fd.assemble_to(our_filestate.local_filename);
-			        		f.setLastModified(other_filestate.last_modified);
+			        		f.setLastModified(0);
+			        		//now we have the file delta lets request to fill the blocks we need
+			        		final Lock file_lock = new ReentrantLock();
+			        		LinkedList<Block> remote_blocks=new LinkedList<Block>();
+			        		for (Block b : fd.ll) {
+			        			if (b.local_block) {
+				        			b.data=null;
+				        			request_block(b);
+				        			file_lock.lock();
+				        			b.write_to_file(our_filestate.local_filename);
+				        			f.setLastModified(our_filestate.last_modified);
+				        			file_lock.unlock();
+				        			assert(b.data!=null);
+			        			} else {
+			        				remote_blocks.add(b);
+			        			}
+			        		}
+			        		//TODO can multi-thread here?
+			        		boolean abort_file=false;
+			        		for (Block b : remote_blocks){
+			        			b.data=null;
+			        			request_block(b);
+			        			if (b.data==null) {
+			        				abort_file=true;
+			        				OpenBox.log(0, "Aborted file sync!");
+			        				break;
+			        			} else {
+				        			file_lock.lock();
+				        			b.write_to_file(our_filestate.local_filename);
+				        			f.setLastModified(our_filestate.last_modified);
+				        			file_lock.unlock();
+				        			assert(b.data!=null);
+				        		}
+			        		}
+			        		//lets try to assemble it now
+			        		//fd.assemble_to(our_filestate.local_filename);
+
 			        		state.walk_file(f);
+			        		if (!abort_file) {
+			        			FileState fs = state.m.get(repo_filename);
+			        			if (fs.sha1.equals(other_filestate.sha1)) {
+					        		f.setLastModified(other_filestate.last_modified);
+			        			}
+				        		OpenBox.log(0, "Failed to transfer " +repo_filename);
+			        		}
 			        	}
 		        	} else {
 		        		//its a directory
@@ -179,7 +247,7 @@ public abstract class SyncAgent {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		return true;
+		return our_state;
 	}
 	
 	
@@ -192,7 +260,7 @@ public abstract class SyncAgent {
 			send(ControlMessage.rblock(b));
 			send(b);
 			Block r = (Block)recieve();
-			assert(r.data!=null);
+			//assert(r.data!=null);
 			b.data=r.data; //link up the new data
 			return b;
 		} catch (ClassNotFoundException e) {
@@ -229,7 +297,14 @@ public abstract class SyncAgent {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.exit(1); //TODO RECOVER!
+			try {
+				send(null);
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+				OpenBox.log(0, "file error and socket error, we are done!");
+				System.exit(1);
+			}
 		}
 	}
 	

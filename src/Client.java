@@ -54,8 +54,9 @@ public class Client extends SyncAgent {
 			set_socket(sckt);
 			
 			state_lock.lock();
-			state.check_for_zombies();
-			boolean r = pull(); //first pull from the other side
+			//state.check_for_zombies();
+			state.quick_repo_walk();
+			State new_state = pull(); //first pull from the other side
 			
 			ControlMessage cm = listen(true); //then listen
 			assert(cm.type==ControlMessage.YOUR_TURN);
@@ -83,13 +84,19 @@ public class Client extends SyncAgent {
 			//ok, update the respective file in the state
 			state_lock.lock();
 			//System.out.println("State before: " + state);
-			boolean change = state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
-			change = state.check_for_zombies() || change;
-			//System.out.println("State after: " + state);
-			if (change) {
-				synchronize_with_server();
-			} else {
-				OpenBox.log(1, "Fake event fired, there is no change!");
+			boolean change;
+			try {
+				change = state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
+				//change = state.check_for_zombies() || change;
+				//System.out.println("State after: " + state);
+				if (change) {
+					synchronize_with_server();
+				} else {
+					OpenBox.log(1, "Fake event fired, there is no change!");
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 			state_lock.unlock();
 		}

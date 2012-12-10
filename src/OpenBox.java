@@ -124,7 +124,13 @@ public class OpenBox {
 		
 		//lets make the initial state
 		State state = new State(repo_root);
-		state.update_state();
+		try {
+			state.update_state();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+			System.exit(1);
+		}
 		if (server) {
 			
 			//set System.setProperty (Dec 9, 2012)

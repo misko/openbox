@@ -26,7 +26,7 @@ public class ServerThread extends SyncAgent implements Runnable {
 		server.state_lock.lock();
 		boolean client_push = server.client_push();
 		if (client_push) {
-			boolean r = pull();
+			State new_state = pull();
 			server.client_done_push();
 		} else {
 			try {
