@@ -47,9 +47,10 @@ public class RollingChecksum {
 			    by[index++] = b;
 			}
 			ll.add(new FileChecksum(h[0],h[1],MD5.MD5(by)));
-			//System.out.println(""+ h[0]+ " " +h[1]);
+			//System.out.println(""+ h[0]+ " " +h[1] + " " + data.size());
 		} while (update(OpenBox.blocksize)>0);
-		
+
+		//System.exit(1);//TODO REMOVE THIS
 		return ll.toArray(new FileChecksum[0]);
 	}
 	
@@ -109,6 +110,7 @@ public class RollingChecksum {
 	public int update(int d) {
 		try {
 			int bytes_read=0;
+			byte[] z = new byte[1];
 			for (int i=0; i<d; i++) {
 
 				if (initialized && data.size()>0) {
@@ -117,19 +119,26 @@ public class RollingChecksum {
 					Byte y = data.poll();
 					a = (a - y) % modp;
 					b = (b - OpenBox.blocksize * y) % modp;
+				} else {
+					//System.out.println("not popping byte " + data.size());
 				}
 				
-				Byte z = (byte) fis.read();
-				if (z!=-1) {
+				int read_now = (byte) fis.read(z);
+				if (read_now!=-1) {
 					bytes_read++;
 					//System.out.println("read new byte");
-					data.offer(z);
-					a=(a+z)%modp;
+					data.offer(z[0]);
+					a=(a+z[0])%modp;
 					b=(b+a)%modp;
+				} else {
+					//System.out.println("error reading byte " + data.size());
 				}
 				//means we have data update
 
 			}
+			
+			//System.out.println("\tBytes read "+bytes_read + " " + d);
+			//System.exit(1);
 			return bytes_read;
 			
 		} catch (IOException e) {

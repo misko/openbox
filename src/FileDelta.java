@@ -109,6 +109,7 @@ public class FileDelta {
 			long file_size = 0;
 			//create blocks to request
 			for (FileChecksum fc : sums) {
+				//System.out.println(fc);
 				Block b = Block.BlockRemoteRequest(repo_filename, file_size, file_size, fc.size);
 				file_size+=fc.size;
 				ll.add(b);
