@@ -46,7 +46,7 @@ public class Client extends SyncAgent {
 			//Change regular Socket, instead use SSLSocketFactory (Dec 9, 2012)
 			//Socket sckt = new Socket(host_name, host_port);
 			SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-			Socket sckt = sslsocketfactory.createSocket(host_name, host_port);
+			SSLSocket sckt = (SSLSocket) sslsocketfactory.createSocket(host_name, host_port);
 			
 			OpenBox.log(0, "Client has connected to server " + sckt.getLocalSocketAddress()+ " -> " + sckt.getRemoteSocketAddress());
 			

@@ -24,7 +24,7 @@ public class Server {
 	final Condition client_closed  = lock.newCondition(); //locks to make sure we know whats going down
 	FileObject fo_repo_root;
 	
-	ServerSocket server_socket;
+	SSLServerSocket server_socket;
 	int listen_port;
 	String repo_root;
 	
@@ -101,7 +101,7 @@ public class Server {
 		SSLServerSocketFactory sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 		
 		//try to bind the socket (update Dec 9,2012)
-		server_socket = sslserversocketfactory.createServerSocket(listen_port);
+		server_socket = (SSLServerSocket) sslserversocketfactory.createServerSocket(listen_port);
 		
 		//lets try to listen on the repo folder
 		FileSystemManager fsManager = VFS.getManager(); 
@@ -116,10 +116,10 @@ public class Server {
 	
 	synchronized public void listen() {
 		//make the server listen
-		Socket sckt;
+		SSLSocket sckt;
 		try {
 			OpenBox.log(0, "Server is listening on " + server_socket.getLocalSocketAddress());
-			sckt = server_socket.accept();
+			sckt = (SSLSocket) server_socket.accept();
 			//need to pass in a copy of the state!
 			state_lock.lock();
 			state.check_for_zombies();
