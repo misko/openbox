@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Timer;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -28,33 +29,64 @@ public abstract class SyncAgent {
 	ObjectOutputStream oos;
 	ObjectInputStream ois;
 	
+	ManagedOutputStream mos;
+	ManagedInputStream mis;
+	
 	State state;
 	String repo_root;
 	
 	public final int blocksize = 1024;
 	
+	Timer status_timer;
 	
+
+	long last_status_update=0;
+	long last_bytes_sent=0;
+	long last_bytes_recv=0;
+	
+	
+	public void status() {
+		status(last_status_update,last_bytes_sent,last_bytes_recv);
+	}
+	
+	public void status(long last_status_update, long last_bytes_sent, long last_bytes_recv) {
+		long now = System.currentTimeMillis();
+		long total_bytes_sent=mos.total_bytes_sent;
+		long total_bytes_recv=mis.total_bytes_recv;
+		double tx_rate =  (((double)total_bytes_sent)-last_bytes_sent)/(now - last_status_update);
+		double rx_rate =  (((double)total_bytes_recv)-last_bytes_recv)/(now - last_status_update);
+		last_status_update=now;
+		OpenBox.log(0, "TX: " + String.format("%.2f",tx_rate) + "kb/s\tRX: " +String.format("%.2f",rx_rate) + "kb/s\tTotal-TX: " +mos.total_bytes_sent/1000 + "kb\tTotal-RX: " +mis.total_bytes_recv +"kb" );
+	}
 	
 	public SyncAgent(String repo_root, State state) throws IOException {
 		this.repo_root=repo_root;
 		this.state=state;
+		last_status_update=System.currentTimeMillis();
 		//state.update_state(); //TODO could share this among multiple connections
 	}
 	
 	public void set_socket(Socket sckt) {
 		this.sckt=sckt;
 		try {
-			oos=new ObjectOutputStream(sckt.getOutputStream());
-			ois=new ObjectInputStream(sckt.getInputStream());
+			mos = new ManagedOutputStream(sckt.getOutputStream());
+			mis = new ManagedInputStream(sckt.getInputStream());
+			oos=new ObjectOutputStream(mos);
+			ois=new ObjectInputStream(mis);
+			status_timer = new Timer("Status");
+			StatusTask st = new StatusTask(this);
+			status_timer.schedule(st, 0, 15000);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			System.exit(1);
 		}
 	}
 	
 	
 	public void close_socket() {
 		try {
+			status_timer.cancel();
 			sckt.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -122,6 +154,8 @@ public abstract class SyncAgent {
 				return our_state;
 			}
 			
+			OpenBox.log(0, "Preparing to pull");
+			
 			//send a request for state
 			send(ControlMessage.rstate());
 			//get back the other state
@@ -132,7 +166,8 @@ public abstract class SyncAgent {
 			//System.out.println("OTHER STATE:\n"+ other_state);
 			our_state.reconsolidate(other_state);
 			//System.out.println("MY STATE AFTER:\n" + our_state);
-			
+
+			OpenBox.log(0, "Starting to pull");
 			
 			//delete everything we should delete
 		    Iterator<Entry<String, FileState>> it = other_state.m.entrySet().iterator();
@@ -289,6 +324,7 @@ public abstract class SyncAgent {
 	}
 	
 	public void handle_rfcheck(ControlMessage cm) {
+		OpenBox.log(0, "Handling RFCHECK");
 		try {
 			assert(cm.repo_filename!=null);
 			String filename = state.repo_path+File.separatorChar+cm.repo_filename;
@@ -306,6 +342,7 @@ public abstract class SyncAgent {
 				System.exit(1);
 			}
 		}
+		OpenBox.log(0, "Handled RFCHECK");
 	}
 	
 	

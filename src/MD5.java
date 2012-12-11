@@ -4,17 +4,20 @@ import java.security.NoSuchAlgorithmException;
 
 
 public class MD5 {
-	
-	public static String MD5(byte[] bytes) {
-		MessageDigest m;
-		try {
-			m = MessageDigest.getInstance("MD5");
-			m.update(bytes,0,bytes.length);
-			return new BigInteger(1,m.digest()).toString(16); 
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return null;
+	private static MessageDigest md5;
+    
+    static {
+            try {
+                    md5 = MessageDigest.getInstance("md5");
+            } catch (NoSuchAlgorithmException e) {
+                    e.printStackTrace();
+                    System.exit(1);
+            }
+    }
+    
+    
+	public static String MD5string(final byte[] bytes) {
+		md5.reset();
+		return new BigInteger(1,md5.digest(bytes)).toString(16); 
 	}
 }

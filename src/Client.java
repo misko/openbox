@@ -22,6 +22,8 @@ public class Client extends SyncAgent {
 	String host_name;
 	int host_port;
 	
+	
+	
 	public Client(String host_name, int host_port, String repo_root, State state) throws UnknownHostException, IOException {
 		super(repo_root, state);
 		this.host_name=host_name;

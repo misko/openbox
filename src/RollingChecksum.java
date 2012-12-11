@@ -1,9 +1,11 @@
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.LinkedList;
 import java.util.Queue;
-
+import java.util.zip.Adler32;
 /**
  * This class is used to compute the adler64 checksums of a file.
  * 
@@ -16,6 +18,8 @@ public class RollingChecksum {
 	long mask = 0xffffffff;
 	LinkedList<Byte> data;
 	boolean initialized=false;
+	
+	
 	
 	/** 
 	 * Initialize the rolling checksum
@@ -46,7 +50,7 @@ public class RollingChecksum {
 			for (byte b : data) {
 			    by[index++] = b;
 			}
-			ll.add(new FileChecksum(h[0],h[1],MD5.MD5(by)));
+			ll.add(new FileChecksum(h[0],h[1],MD5.MD5string(by)));
 			//System.out.println(""+ h[0]+ " " +h[1] + " " + data.size());
 		} while (update(OpenBox.blocksize)>0);
 
@@ -76,7 +80,7 @@ public class RollingChecksum {
 		for (byte b : data) {
 		    by[index++] = b;
 		}
-		return MD5.MD5(by);
+		return MD5.MD5string(by);
 	}
 	
 	/**

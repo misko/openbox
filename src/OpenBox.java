@@ -8,7 +8,7 @@ import java.util.Date;
 
 public class OpenBox {
 	
-	public static final int blocksize=128;
+	public static final int blocksize=1024;
 	public static final long poll_delay=1000;
 	public static final long server_sync_delay=15000; 
 	public static int debug_level=1;
