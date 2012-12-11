@@ -33,7 +33,7 @@ public class ServerThread extends SyncAgent implements Runnable {
 	}
 	
 	public ServerThread(Server server, Socket sckt, String repo_root, State state) throws IOException {
-		super(repo_root, state);
+		super(repo_root, state,OpenBox.server_bytes_in_per_second,OpenBox.server_bytes_out_per_second);
 		set_socket(sckt);
 		this.server=server;
 	}

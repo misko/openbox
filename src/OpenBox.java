@@ -24,8 +24,12 @@ public class OpenBox {
 	static int listen_port;
 	static boolean set_repo_root=false;
 	static String repo_root;
+	public static int client_bytes_in_per_second=100000;
+	public static int client_bytes_out_per_second=10000;
+	public static int server_bytes_in_per_second=100000;
+	public static int server_bytes_out_per_second=100000;
 	public static int num_workers=6;
-	public static long status_period=2000;
+	public static long status_period=5000;
 	
 	public static void log(int level, String s) {
 		if (debug_level>level) {

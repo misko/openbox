@@ -9,6 +9,9 @@ public class ManagedInputStream extends InputStream {
 	public int bytes_per_second=100000;
 	public long total_bytes_recv=0;
 	
+	public void set_bw_limit(int out) {
+		bytes_per_second=out;
+	}
 	
 	public ManagedInputStream(InputStream is) {
 		this.is=is;

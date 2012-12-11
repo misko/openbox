@@ -29,6 +29,10 @@ public abstract class SyncAgent {
 	int workers_busy=0;
 	int workers_ready_to_pull=0;
 	int workers_ready_to_listen=0;
+	
+	int bytes_in_per_second=0;
+	int bytes_out_per_second=0;
+	
 	boolean abort_file=false;
 	
 	boolean workers_pulling=false;
@@ -157,15 +161,19 @@ public abstract class SyncAgent {
 		}
 		double tx_rate =  (((double)total_bytes_sent)-last_bytes_sent)/(now - last_status_update);
 		double rx_rate =  (((double)total_bytes_recv)-last_bytes_recv)/(now - last_status_update);
-		OpenBox.log(0, "TX: " + String.format("%.2f",tx_rate) + "kb/s\tRX: " +String.format("%.2f",rx_rate) + "kb/s\tTotal-TX: " +mos.total_bytes_sent/1000 + "kb\tTotal-RX: " +mis.total_bytes_recv/1000 +"kb\t" + "D: "+ (now - last_status_update) + " " +now + " " + last_status_update);
+		OpenBox.log(0, "TX: " + String.format("%.2f",tx_rate) + "kb/s\tRX: " +String.format("%.2f",rx_rate) + "kb/s\tTotal-TX: " +total_bytes_sent/1000 + "kb\tTotal-RX: " +total_bytes_recv/1000 +"kb");
 		this.last_bytes_recv=total_bytes_recv;
 		this.last_bytes_sent=total_bytes_sent;
 		this.last_status_update=now;
 	}
 	
-	public SyncAgent(String repo_root, State state) throws IOException {
+	public SyncAgent(String repo_root, State state,int bytes_in_per_second, int bytes_out_per_second) throws IOException {
 		this.repo_root=repo_root;
 		this.state=state;
+		
+		this.bytes_in_per_second=bytes_in_per_second;
+		this.bytes_out_per_second=bytes_out_per_second;
+		
 		workers=new LinkedList<SyncAgent>();
 		worker_blocks=new LinkedList<Block>();
 		last_status_update=System.currentTimeMillis();
@@ -176,7 +184,9 @@ public abstract class SyncAgent {
 		this.sckt=sckt;
 		try {
 			mos = new ManagedOutputStream(sckt.getOutputStream());
+			mos.set_bw_limit(bytes_in_per_second);
 			mis = new ManagedInputStream(sckt.getInputStream());
+			mis.set_bw_limit(bytes_out_per_second);
 			oos=new ObjectOutputStream(mos);
 			ois=new ObjectInputStream(mis);
 			status_timer = new Timer("Status");

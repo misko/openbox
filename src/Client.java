@@ -56,7 +56,7 @@ public class Client extends SyncAgent implements Runnable {
 	
 	
 	public Client(String host_name, int host_port, String repo_root, State state) throws UnknownHostException, IOException {
-		super(repo_root, state);
+		super(repo_root, state,OpenBox.client_bytes_in_per_second,OpenBox.client_bytes_out_per_second);
 		this.host_name=host_name;
 		this.host_port=host_port;
 		//lets try to listen on the repo folder
@@ -71,7 +71,7 @@ public class Client extends SyncAgent implements Runnable {
 	}
 	
 	public Client(Client c) throws IOException {
-		super(c.repo_root,null);
+		super(c.repo_root,null,OpenBox.client_bytes_in_per_second,OpenBox.client_bytes_out_per_second);
 		this.parent_sa=c;
 		this.session_id=c.session_id;
 		this.host_name=c.host_name;

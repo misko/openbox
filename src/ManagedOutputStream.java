@@ -13,6 +13,10 @@ public class ManagedOutputStream extends OutputStream {
 		this.os=os;
 	}
 	
+	public void set_bw_limit(int in) {
+		bytes_per_second=in;
+	}
+	
 	@Override
 	public void write(int b) throws IOException {
 
