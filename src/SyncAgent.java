@@ -5,25 +5,35 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
 import java.net.Socket;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Timer;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.vfs2.FileChangeEvent;
-import org.apache.commons.vfs2.FileListener;
-import org.apache.commons.vfs2.FileObject;
-import org.apache.commons.vfs2.FileSystemManager;
-import org.apache.commons.vfs2.VFS;
-import org.apache.commons.vfs2.impl.DefaultFileMonitor;
 
 
 public abstract class SyncAgent {
+	SyncAgent parent_sa; //set if this sync agent is a worker
+	LinkedList<SyncAgent> workers;
+	final Lock worker_lock = new ReentrantLock();
+	final Condition work_to_do  = worker_lock.newCondition();
+	final Condition work_done  = worker_lock.newCondition();
+	final Condition workers_ready  = worker_lock.newCondition();
+	final Condition workers_procced = worker_lock.newCondition();
+	LinkedList<Block> worker_blocks;
+	int total_worker_blocks=0;
+	int worker_blocks_done=0;
+	int workers_busy=0;
+	int workers_ready_to_pull=0;
+	int workers_ready_to_listen=0;
+	boolean abort_file=false;
 	
+	boolean workers_pulling=false;
+	
+	String session_id;
 	
 	Socket sckt;
 	ObjectOutputStream oos;
@@ -44,6 +54,94 @@ public abstract class SyncAgent {
 	long last_bytes_sent=0;
 	long last_bytes_recv=0;
 	
+	public void add_worker(SyncAgent sa) {
+		worker_lock.lock();
+		workers.add(sa);
+		worker_lock.unlock();
+	}
+	
+	public void zero_worker_state() {
+		total_worker_blocks=0;
+		worker_blocks_done=0;
+		workers_busy=0;
+		workers_ready_to_pull=0;
+		workers_ready_to_listen=0;
+		abort_file=false;
+		workers_pulling=false;
+	}
+	
+	public void worker_pull(LinkedList<Block> remote_blocks) {
+		//set up the multi-threading....
+		worker_lock.lock();
+		
+		abort_file=false;
+		workers_busy=0;
+		
+		worker_blocks=remote_blocks;
+		total_worker_blocks=remote_blocks.size();
+		worker_blocks_done=0;
+		//run the requesters
+		work_to_do.signalAll();
+		//wait for the done
+		try {
+			while(total_worker_blocks!=worker_blocks_done) {
+				work_done.await();
+			}
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		worker_lock.unlock();
+	}
+	
+	public void worker_help_pull() {
+		assert(parent_sa!=null);
+		parent_sa.worker_lock.lock();
+		try {
+			while (parent_sa.workers_pulling) {
+				while(parent_sa.workers_pulling && (abort_file || parent_sa.worker_blocks.size()==0)) {
+					parent_sa.work_to_do.await();
+				}
+				
+				while(parent_sa.workers_pulling && (!abort_file && parent_sa.worker_blocks.size()>0)) {
+					//do some work, worker!
+					Block b = parent_sa.worker_blocks.poll();
+					
+					workers_busy++;
+					parent_sa.worker_lock.unlock();
+					
+					//process the block
+					OpenBox.log(3, b.toString());
+					b.data=null;
+        			request_block(b);
+        			OpenBox.log(3, "GOT " +b);
+					parent_sa.worker_lock.lock();
+					workers_busy--;
+					
+					if (b.data==null) {
+						abort_file=true;
+					}
+					
+					parent_sa.worker_blocks_done++;
+					
+					if ((abort_file && workers_busy==0) || parent_sa.worker_blocks_done==parent_sa.total_worker_blocks) {
+						parent_sa.work_done.signal();
+					}
+				}
+			}
+			try {
+				send(ControlMessage.yourturn());
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+			parent_sa.worker_lock.unlock();
+		}
+	}
 	
 	public void status() {
 		status(last_status_update,last_bytes_sent,last_bytes_recv);
@@ -53,15 +151,23 @@ public abstract class SyncAgent {
 		long now = System.currentTimeMillis();
 		long total_bytes_sent=mos.total_bytes_sent;
 		long total_bytes_recv=mis.total_bytes_recv;
+		for (SyncAgent sa : workers ) {
+			total_bytes_sent+=sa.mos.total_bytes_sent;
+			total_bytes_recv+=sa.mis.total_bytes_recv;
+		}
 		double tx_rate =  (((double)total_bytes_sent)-last_bytes_sent)/(now - last_status_update);
 		double rx_rate =  (((double)total_bytes_recv)-last_bytes_recv)/(now - last_status_update);
-		last_status_update=now;
-		OpenBox.log(0, "TX: " + String.format("%.2f",tx_rate) + "kb/s\tRX: " +String.format("%.2f",rx_rate) + "kb/s\tTotal-TX: " +mos.total_bytes_sent/1000 + "kb\tTotal-RX: " +mis.total_bytes_recv +"kb" );
+		OpenBox.log(0, "TX: " + String.format("%.2f",tx_rate) + "kb/s\tRX: " +String.format("%.2f",rx_rate) + "kb/s\tTotal-TX: " +mos.total_bytes_sent/1000 + "kb\tTotal-RX: " +mis.total_bytes_recv/1000 +"kb\t" + "D: "+ (now - last_status_update) + " " +now + " " + last_status_update);
+		this.last_bytes_recv=total_bytes_recv;
+		this.last_bytes_sent=total_bytes_sent;
+		this.last_status_update=now;
 	}
 	
 	public SyncAgent(String repo_root, State state) throws IOException {
 		this.repo_root=repo_root;
 		this.state=state;
+		workers=new LinkedList<SyncAgent>();
+		worker_blocks=new LinkedList<Block>();
 		last_status_update=System.currentTimeMillis();
 		//state.update_state(); //TODO could share this among multiple connections
 	}
@@ -74,8 +180,8 @@ public abstract class SyncAgent {
 			oos=new ObjectOutputStream(mos);
 			ois=new ObjectInputStream(mis);
 			status_timer = new Timer("Status");
-			StatusTask st = new StatusTask(this);
-			status_timer.schedule(st, 0, 15000);
+			
+			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -83,6 +189,15 @@ public abstract class SyncAgent {
 		}
 	}
 	
+	public void turn_on_status(long delta) {
+		last_status_update=0;
+		last_bytes_sent=0;
+		last_bytes_recv=0;
+		StatusTask st = new StatusTask(this);
+		status_timer.schedule(st, 0, delta);
+	}
+	
+
 	
 	public void close_socket() {
 		try {
@@ -108,7 +223,7 @@ public abstract class SyncAgent {
 		RandomAccessFile raf =null;
 		byte by[]=null;
 		try {
-			raf = new RandomAccessFile(state.repo_path + File.separatorChar + b.repo_filename,"r");
+			raf = new RandomAccessFile(repo_root + File.separatorChar + b.repo_filename,"r");
 			//System.out.println(b);
 			assert(b.size<(1<<15)); //casting to int, just make sure
 			by = new byte[(int) b.size];
@@ -144,6 +259,83 @@ public abstract class SyncAgent {
 		f.delete();
 	}
 	
+	
+	public void wait_for_pull_workers() {
+		worker_lock.lock();
+		while(this.workers_ready_to_pull<OpenBox.num_workers) {
+			try {
+				workers_ready.await();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		worker_lock.unlock();
+	}
+	
+	public void wait_for_listen_workers() {
+		worker_lock.lock();
+		while(this.workers_ready_to_listen<OpenBox.num_workers) {
+			try {
+				workers_ready.await();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		OpenBox.log(0, "Got all listeners!");
+		worker_lock.unlock();
+	}
+
+	
+	public void worker_ready_to_listen() {
+		parent_sa.worker_lock.lock();
+		parent_sa.workers_ready_to_listen++;
+		if (parent_sa.workers_ready_to_listen==OpenBox.num_workers) {
+
+			parent_sa.workers_ready.signalAll();
+		}
+		try {
+			parent_sa.workers_procced.await();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		parent_sa.worker_lock.unlock();
+	}
+	public void worker_ready_to_pull() {
+		parent_sa.worker_lock.lock();
+		parent_sa.workers_ready_to_pull++;
+		if (parent_sa.workers_ready_to_pull==OpenBox.num_workers) {
+			parent_sa.workers_ready.signalAll();
+		}
+		try {
+			parent_sa.workers_procced.await();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		parent_sa.worker_lock.unlock();
+	}
+	
+	public void workers_to_pull() {
+		workers_pulling=true;
+	}
+	
+	public void workers_to_listen() {
+		worker_lock.lock();
+		workers_pulling=false;
+		abort_file=false;
+		work_to_do.signalAll();
+		worker_lock.unlock();
+	}
+	
+	public void workers_procced() {
+		worker_lock.lock();
+		workers_procced.signalAll();
+		worker_lock.unlock();
+	}
+	
 	public State pull() {
 		State our_state=null;
 		try {
@@ -167,6 +359,9 @@ public abstract class SyncAgent {
 			our_state.reconsolidate(other_state);
 			//System.out.println("MY STATE AFTER:\n" + our_state);
 
+			OpenBox.log(0,"waiting for workers...");
+
+			wait_for_pull_workers();
 			OpenBox.log(0, "Starting to pull");
 			
 			//delete everything we should delete
@@ -225,10 +420,13 @@ public abstract class SyncAgent {
 			        				remote_blocks.add(b);
 			        			}
 			        		}
-			        		//TODO can multi-thread here?
-			        		boolean abort_file=false;
+			        		
+			        		
+			        		worker_pull((LinkedList<Block>) remote_blocks.clone());
+			        		
 			        		for (Block b : remote_blocks){
-			        			b.data=null;
+			        			//b.data=null;
+			        			assert(b.data!=null);
 			        			request_block(b);
 			        			if (b.data==null) {
 			        				abort_file=true;
@@ -250,8 +448,9 @@ public abstract class SyncAgent {
 			        			FileState fs = state.m.get(repo_filename);
 			        			if (fs.sha1.equals(other_filestate.sha1)) {
 					        		f.setLastModified(other_filestate.last_modified);
+			        			} else {
+			        				OpenBox.log(0, "Failed to transfer " +repo_filename);
 			        			}
-				        		OpenBox.log(0, "Failed to transfer " +repo_filename);
 			        		}
 			        	}
 		        	} else {
@@ -265,7 +464,7 @@ public abstract class SyncAgent {
 		        }
 		        
 		    }
-		    
+		    OpenBox.log(0, "Done pull");
 		    //System.out.println("Client finished pull successfully!");
 			
 		} catch (IOException e) {

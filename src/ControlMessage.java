@@ -40,8 +40,13 @@ public class ControlMessage implements Serializable {
 	public static final int YOUR_TURN = 1<<10;
 	public static final int TRY_LATER = 1<<11;
 	
+	public static final int NEW_SESSION = 1<<12;
+	public static final int JOIN_SESSION = 1<<13;
+	public static final int IN_SESSION = 1<<14;
+	
 	
 	public String repo_filename;
+	public String session_id;
 
 	int type;
 	
@@ -49,6 +54,25 @@ public class ControlMessage implements Serializable {
 		this.type=type;
 	}
 
+	
+	
+	public static ControlMessage new_session() {
+		ControlMessage cm = new ControlMessage(ControlMessage.NEW_SESSION);
+		return cm;
+	}
+	
+	public static ControlMessage resume_session(String session_id) {
+		ControlMessage cm = new ControlMessage(ControlMessage.JOIN_SESSION);
+		cm.session_id=session_id;
+		return cm;
+	}
+	
+	public static ControlMessage in_session(String session_id) {
+		ControlMessage cm = new ControlMessage(ControlMessage.IN_SESSION);
+		cm.session_id=session_id;
+		return cm;
+	}
+	
 	/**
 	 * Returns a ControlMessage that when sent requests file checksums for the given file to be sent be the receiver.
 	 * @return A ControlMessage with RFCHECK set

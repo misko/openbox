@@ -24,10 +24,12 @@ public class OpenBox {
 	static int listen_port;
 	static boolean set_repo_root=false;
 	static String repo_root;
+	public static int num_workers=6;
+	public static long status_period=2000;
 	
 	public static void log(int level, String s) {
 		if (debug_level>level) {
-			System.out.println(dateFormat.format(new Date()) + "\t"+s);
+			System.out.println( dateFormat.format(new Date()) + "\tThread: " + Thread.currentThread().getId() + "\t"+s);
 		}
 	}
 	
@@ -158,7 +160,8 @@ public class OpenBox {
 			host_port=port;
 			try {
 				Client c = new Client(host_name, host_port, repo_root,state);
-				c.synchronize_with_server();
+				c.run();
+				/*c.synchronize_with_server();
 				while (true) {
 					try {
 						Thread.sleep(OpenBox.server_sync_delay);
@@ -168,7 +171,7 @@ public class OpenBox {
 						e.printStackTrace();
 						break;
 					}
-				}
+				}*/
 				//c.send("test");
 				//c.send("what");
 			} catch (UnknownHostException e) {

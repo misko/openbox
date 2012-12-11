@@ -1,8 +1,8 @@
 import java.io.File;
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.Date;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import java.util.HashMap;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -20,6 +20,9 @@ import javax.net.ssl.SSLSocket;
 
 
 public class Server {
+	private SecureRandom random = new SecureRandom();
+	HashMap<String, ServerThread> sessions;
+	
 	final Lock lock = new ReentrantLock();
 	final Condition client_closed  = lock.newCondition(); //locks to make sure we know whats going down
 	FileObject fo_repo_root;
@@ -36,6 +39,8 @@ public class Server {
 	
 
 	final Lock state_lock = new ReentrantLock();
+	
+
 	
 	public boolean client_read() {
 		lock.lock();
@@ -91,11 +96,29 @@ public class Server {
 		waiting_for_update=false;
 	}
 	 
+	public synchronized String make_session(ServerThread st) {
+		String session_id = new BigInteger(130, random).toString(32);
+		while (sessions.containsKey(session_id)) {
+			session_id = new BigInteger(130, random).toString(32);
+		}
+		OpenBox.log(0, "New session added " + session_id);
+		sessions.put(session_id, st);
+		return session_id;
+	}
+	
+	public synchronized ServerThread connect_worker(String session_id, SyncAgent sa) {
+		assert(sessions.containsKey(session_id));
+		ServerThread st = sessions.get(session_id);
+		st.workers.add(sa);
+		return st;
+	}
 	
 	public Server(int listen_port, String repo_root, State state) throws IOException {
 		this.listen_port=listen_port;
 		this.repo_root=repo_root;
 		this.state = state; 
+		
+		sessions=new HashMap<String, ServerThread>();
 		
 		//SSLServerSocketFactory (Dec 9, 2012)
 		SSLServerSocketFactory sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
@@ -114,23 +137,24 @@ public class Server {
 		fm.start(); 
 	}
 	
-	synchronized public void listen() {
+
+	public void quick_repo_walk(){ 
+		state_lock.lock();
+		state.quick_repo_walk();
+		state_lock.unlock();
+	}
+	
+	public void listen() {
 		//make the server listen
 		SSLSocket sckt;
 		try {
-			OpenBox.log(0, "Server is listening on " + server_socket.getLocalSocketAddress());
+			//OpenBox.log(0, "Server is listening on " + server_socket.getLocalSocketAddress());
 			sckt = (SSLSocket) server_socket.accept();
-			//need to pass in a copy of the state!
-			//state_lock.lock();
-			//state.check_for_zombies();
-			//state_lock.unlock();
-			//State thread_state = new State(state);
-			state_lock.lock();
-			state.quick_repo_walk();
-			state_lock.unlock();
+			
 			ServerThread st = new ServerThread(this,sckt,repo_root,state);
+			//lets put the session into the map
 			Thread t = new Thread(st);
-			t.run();
+			t.start();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
