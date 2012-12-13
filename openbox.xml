@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="create_run_jar" name="Create Runnable Jar for Project openbox with Jar-in-Jar Loader">
+    <!--this file was created by Eclipse Runnable JAR Export Wizard-->
+    <!--ANT 1.7 is required                                        -->
+    <target name="create_run_jar">
+        <jar destfile="/Users/miskodzamba/Documents/workspace/Openbox/OpenBox.jar">
+            <manifest>
+                <attribute name="Main-Class" value="org.eclipse.jdt.internal.jarinjarloader.JarRsrcLoader"/>
+                <attribute name="Rsrc-Main-Class" value="OpenBox"/>
+                <attribute name="Class-Path" value="."/>
+                <attribute name="Rsrc-Class-Path" value="./ commons-vfs2-2.0.jar commons-logging-1.1.1.jar"/>
+            </manifest>
+            <zipfileset src="jar-in-jar-loader.zip"/>
+            <fileset dir="/Users/miskodzamba/Documents/workspace/openbox/bin"/>
+            <zipfileset dir="/Users/miskodzamba/Documents/workspace/openbox/libs" includes="commons-vfs2-2.0.jar"/>
+            <zipfileset dir="/Users/miskodzamba/Documents/workspace/openbox/libs" includes="commons-logging-1.1.1.jar"/>
+        </jar>
+    </target>
+</project>
