@@ -1,3 +1,4 @@
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -5,6 +6,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.zip.Adler32;
 /**
  * This class is used to compute the adler64 checksums of a file.
@@ -12,11 +14,11 @@ import java.util.zip.Adler32;
  */
 public class RollingChecksum {
 	private static long modp=4294967291l;
-	FileInputStream fis=null;
+	BufferedInputStream bis=null;
 	long a=0;
 	long b=0;
 	long mask = 0xffffffff;
-	LinkedList<Byte> data;
+	ArrayBlockingQueue<Byte> data;
 	boolean initialized=false;
 	
 	
@@ -27,9 +29,9 @@ public class RollingChecksum {
 	 * @throws FileNotFoundException If we cant find the file...
 	 */
 	public RollingChecksum(String filename) throws FileNotFoundException {
-		fis=new FileInputStream(filename);
+		bis=new BufferedInputStream(new FileInputStream(filename));
 		
-		data=new LinkedList<Byte>();
+		data=new ArrayBlockingQueue<Byte>(OpenBox.blocksize*2);
 		
 		// initialize the rolling checksum
 		update(OpenBox.blocksize);
@@ -42,6 +44,7 @@ public class RollingChecksum {
 	 * @return The checksum of consecutive data blocks
 	 */
 	public FileChecksum[] blocks() {
+		OpenBox.log(0, "Computing rolling checksum (blocks)");
 		LinkedList<FileChecksum> ll=new LinkedList<FileChecksum>();
 		do {
 			long h[] = hash();
@@ -54,7 +57,7 @@ public class RollingChecksum {
 			//System.out.println(""+ h[0]+ " " +h[1] + " " + data.size());
 		} while (update(OpenBox.blocksize)>0);
 
-		//System.exit(1);//TODO REMOVE THIS
+		OpenBox.log(0, "Done computing rolling checksum (blocks)");
 		return ll.toArray(new FileChecksum[0]);
 	}
 	
@@ -106,6 +109,12 @@ public class RollingChecksum {
 		return ((bp&mask)<<32)+(ap&mask);
 	}
 	
+	public int update(long d) {
+		int intd = (int)d;
+		assert(intd==d);
+		return update(intd);
+	}
+	
 	/** 
 	 * Move the rolling window by d bytes
 	 * @param d The number of bytes to move the window by
@@ -127,7 +136,7 @@ public class RollingChecksum {
 					//System.out.println("not popping byte " + data.size());
 				}
 				
-				int read_now = (byte) fis.read(z);
+				int read_now = (byte) bis.read(z);
 				if (read_now!=-1) {
 					bytes_read++;
 					//System.out.println("read new byte");

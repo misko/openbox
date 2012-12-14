@@ -63,6 +63,7 @@ public class FileDelta {
 			while (moved>0) {
 				//System.out.println("X"+h[1]);
 				if (need_these.containsKey(h[1])) {
+					boolean accepted_block=false;
 					//had a adler64 collision check the md5
 					String md5_hash = rl.hash_md5(); //fairly expensive step, can optimize only compute if actually found a missing md5 from below
 					for (FileChecksum fc : need_these.get(h[1])) {
@@ -70,11 +71,17 @@ public class FileDelta {
 						if (md5_hash.equals(fc.md5)) {
 							//pretty sure this is the piece
 							have_these.put(fc,  Block.BlockLocalRequest(repo_filename, current_offset, -1, h[0]));
+							accepted_block=true;
+							break;
 							//have_these.put(fc, new Block(repo_filename,current_offset,true,h[1],h[0]));
 						}
 					}
 					//moved=rl.update(OpenBox.blocksize);
-					moved=rl.update(1);
+					if (accepted_block) {
+						moved=rl.update(h[0]);
+					} else {
+						moved=rl.update(1);
+					}
 				} else {
 					moved=rl.update(1);
 				}
@@ -91,12 +98,9 @@ public class FileDelta {
 				if (have_these.containsKey(fc)) {
 					//lets just use our block
 					b = have_these.get(fc).copy();
-					//System.out.println("LOCAL\t"+fc + "\n\t"+b);
 				} else {
 					//need to request this block
 					b=Block.BlockRemoteRequest(repo_filename, current_offset, -1, fc.size);
-					//System.out.println("REMOTE\t"+fc+ "\n\t"+b);
-					//b = new Block(repo_filename,current_offset,false,other_h[1],other_h[0]);
 				}
 				b.dest_offset = current_offset;
 				ll.add(b);

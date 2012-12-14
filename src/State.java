@@ -189,13 +189,16 @@ public class State implements Serializable {
 			assert(repo_filename!=null);
 			if (!f.exists()) {
 				//the file does not exist need to mark it as deleted
-					assert(m.containsKey(repo_filename));
-					FileState fs = m.get(repo_filename);
-					assert(fs!=null);
-					if (fs.deleted==false) {
-						fs.deleted=true;
-						fs.earliest_deleted_time=(new Date()).getTime()-OpenBox.poll_delay;
-						change=true;
+					if (!m.containsKey(repo_filename)) {
+						OpenBox.err(true, "There has been an error, missing state for file : " + repo_filename);
+					} else {
+						FileState fs = m.get(repo_filename);
+						assert(fs!=null);
+						if (fs.deleted==false) {
+							fs.deleted=true;
+							fs.earliest_deleted_time=(new Date()).getTime()-OpenBox.poll_delay;
+							change=true;
+						}
 					}
 			} else if (f.isFile() || f.isDirectory()) {
 					FileState current_fs =  FileState.from_file(repo_filename, local_filename,f.isDirectory());

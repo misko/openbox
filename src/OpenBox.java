@@ -8,7 +8,7 @@ import java.util.Date;
 
 public class OpenBox {
 	
-	public static final int blocksize=1024;
+	public static final int blocksize=16*1024;
 	public static final long poll_delay=1000;
 	public static final long server_sync_delay=15000; 
 	public static int debug_level=1;
@@ -24,16 +24,25 @@ public class OpenBox {
 	static int listen_port;
 	static boolean set_repo_root=false;
 	static String repo_root;
-	public static int client_bytes_in_per_second=100000;
-	public static int client_bytes_out_per_second=10000;
-	public static int server_bytes_in_per_second=100000;
-	public static int server_bytes_out_per_second=100000;
-	public static int num_workers=6;
+	public static int client_bytes_in_per_second=500000;
+	public static int client_bytes_out_per_second=500000;
+	public static int server_bytes_in_per_second=500000;
+	public static int server_bytes_out_per_second=500000;
+	public static int num_workers=3;
 	public static long status_period=5000;
+	
+	private static String ssl_certificate_path=null;
 	
 	public static void log(int level, String s) {
 		if (debug_level>level) {
 			System.out.println( dateFormat.format(new Date()) + "\tThread: " + Thread.currentThread().getId() + "\t"+s);
+		}
+	}	
+	
+	public static void err(boolean exit, String s) {
+		System.out.println( dateFormat.format(new Date()) + "\tThread: " + Thread.currentThread().getId() + "\t"+s);
+		if (exit) {
+			System.exit(1);
 		}
 	}
 	
@@ -116,10 +125,13 @@ public class OpenBox {
 		File root = new File(repo_root);
 		try {
 			repo_root=root.getCanonicalPath();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-			System.exit(1);
+			if (!root.exists()) {
+				OpenBox.err(true,"The repository root does not exist! repo_root="+repo_root);
+			} else if (!root.isDirectory()) {
+				OpenBox.err(true,"The repository root is not a directory! repo_root="+repo_root);
+			}
+		} catch (IOException e) {
+			OpenBox.err(true, "Failed to open repository path : " +repo_root + " , "+ e);
 		}
 		
 		
@@ -132,55 +144,49 @@ public class OpenBox {
 		State state = new State(repo_root);
 		try {
 			state.update_state();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-			System.exit(1);
+		} catch (IOException e) {
+			OpenBox.err(true, "Failed to open repository path : " +repo_root + " , " + e);
 		}
+		
+
+		//find out what the ssl certificate path is 
+		if (ssl_certificate_path==null) {
+			OpenBox.log(0,"Missing ssl_certificate_path, using default " + repo_root + File.separatorChar +  "mySrvKeystore");
+			ssl_certificate_path=repo_root+"/mySrvKeystore";
+		}
+		
+		//lets check that the ssl certificate exists!
+		File f = new File(ssl_certificate_path);
+		if (!f.exists() || !f.isFile() || !f.canRead()) {
+			OpenBox.err(true,"SSL certificate file does not exist/is not a file/is not readable! " + ssl_certificate_path);
+		}
+		
 		if (server) {
 			
 			//set System.setProperty (Dec 9, 2012)
-			System.setProperty("javax.net.ssl.keyStore", repo_root+"/mySrvKeystore");
+			System.setProperty("javax.net.ssl.keyStore", ssl_certificate_path);
 			System.setProperty("javax.net.ssl.keyStorePassword", "123456");
 			
 			listen_port=port;
 			Server s;
-			try {
-				s = new Server(listen_port, repo_root,state);
+			s = new Server(listen_port, repo_root,state);
 
-				while (true) {
-					s.listen();
-				}
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			while (true) {
+				s.listen();
 			}
 		} else if (client) {
 			
 			//set System.setProperty (Dec 9, 2012)
-			System.setProperty("javax.net.ssl.trustStore", repo_root+"/mySrvKeystore");
+			System.setProperty("javax.net.ssl.trustStore", ssl_certificate_path);
 			System.setProperty("javax.net.ssl.trustStorePassword", "123456");
 			
 			host_port=port;
 			try {
 				Client c = new Client(host_name, host_port, repo_root,state);
 				c.run();
-				/*c.synchronize_with_server();
-				while (true) {
-					try {
-						Thread.sleep(OpenBox.server_sync_delay);
-						c.synchronize_with_server();
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-						break;
-					}
-				}*/
-				//c.send("test");
-				//c.send("what");
 			} catch (UnknownHostException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+
+				OpenBox.err(true, "Failed to connect to host: " + e);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

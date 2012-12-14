@@ -26,6 +26,8 @@ public abstract class SyncAgent {
 	LinkedList<Block> worker_blocks;
 	int total_worker_blocks=0;
 	int worker_blocks_done=0;
+	FileState worker_filestate;
+	RandomAccessFile worker_raf;
 	int workers_busy=0;
 	int workers_ready_to_pull=0;
 	int workers_ready_to_listen=0;
@@ -74,77 +76,116 @@ public abstract class SyncAgent {
 		workers_pulling=false;
 	}
 	
-	public void worker_pull(LinkedList<Block> remote_blocks) {
+	public void worker_pull(LinkedList<Block> remote_blocks, FileState our_filestate) {
 		//set up the multi-threading....
 		worker_lock.lock();
+		assert(worker_filestate==null);
+		assert(worker_raf==null);
+		
+		try {
+			worker_raf = new RandomAccessFile(our_filestate.local_filename,"rw");
+		} catch (FileNotFoundException e) {
+			worker_raf=null;
+			OpenBox.log(0, "Failed to open random access file for : " + our_filestate.local_filename + " ,  " +e);
+			return;
+		}
+		worker_filestate=our_filestate;
+		
 		
 		abort_file=false;
 		workers_busy=0;
 		
-		worker_blocks=remote_blocks;
+		
+		
+		worker_blocks=(LinkedList<Block>) remote_blocks.clone();
 		total_worker_blocks=remote_blocks.size();
-		worker_blocks_done=0;
+		assert(worker_blocks_done==0);
 		//run the requesters
 		work_to_do.signalAll();
 		//wait for the done
 		try {
-			while(total_worker_blocks!=worker_blocks_done) {
+			while(!abort_file && total_worker_blocks!=worker_blocks_done) {
 				work_done.await();
 			}
 		} catch (InterruptedException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
+		
+		
+		worker_filestate=null;
+		try {
+			worker_raf.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		worker_raf=null;
+		
 		worker_lock.unlock();
 	}
 	
 	public void worker_help_pull() {
+
+		//OpenBox.log(0, "Worker start ");
 		assert(parent_sa!=null);
 		parent_sa.worker_lock.lock();
-		try {
-			while (parent_sa.workers_pulling) {
-				while(parent_sa.workers_pulling && (abort_file || parent_sa.worker_blocks.size()==0)) {
+		File f = null;
+		while (parent_sa.workers_pulling) {
+			while(parent_sa.workers_pulling && (parent_sa.abort_file || parent_sa.worker_blocks.size()==0)) {
+				try {
 					parent_sa.work_to_do.await();
+				} catch (InterruptedException e) {
+					OpenBox.log(0, "Worker thread was interrupted!");
+					parent_sa.worker_lock.unlock();
+					return;
+				}
+			}
+
+			while(parent_sa.workers_pulling && (!parent_sa.abort_file && parent_sa.worker_blocks.size()>0)) {
+
+				
+				//do some work, worker!
+				Block b = parent_sa.worker_blocks.poll();
+
+				parent_sa.workers_busy++;
+				parent_sa.worker_lock.unlock();
+				
+				if (f==null) {
+					f = new File(parent_sa.worker_filestate.local_filename);
 				}
 				
-				while(parent_sa.workers_pulling && (!abort_file && parent_sa.worker_blocks.size()>0)) {
-					//do some work, worker!
-					Block b = parent_sa.worker_blocks.poll();
-					
-					workers_busy++;
-					parent_sa.worker_lock.unlock();
-					
-					//process the block
-					OpenBox.log(3, b.toString());
-					b.data=null;
-        			request_block(b);
-        			OpenBox.log(3, "GOT " +b);
-					parent_sa.worker_lock.lock();
-					workers_busy--;
-					
-					if (b.data==null) {
-						abort_file=true;
-					}
-					
-					parent_sa.worker_blocks_done++;
-					
-					if ((abort_file && workers_busy==0) || parent_sa.worker_blocks_done==parent_sa.total_worker_blocks) {
-						parent_sa.work_done.signal();
-					}
+				//process the block
+				//OpenBox.log(0, b.toString());
+				b.data=null;
+				request_block(b);
+				//OpenBox.log(3, "GOT " +b);
+				parent_sa.worker_lock.lock();
+				parent_sa.workers_busy--;
+
+				if (b.data==null) {
+					parent_sa.abort_file=true;
+				} else {
+					//b.write_to_file(parent_sa.worker_filestate.local_filename);
+					b.write_to_file(parent_sa.worker_raf);
+					f.setLastModified(parent_sa.worker_filestate.last_modified);
+					b.data=null; //free the memory!
+				}
+
+				parent_sa.worker_blocks_done++;
+				
+				if (parent_sa.abort_file || parent_sa.worker_blocks_done==parent_sa.total_worker_blocks) {
+					parent_sa.work_done.signal();
 				}
 			}
-			try {
-				send(ControlMessage.yourturn());
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} finally {
-			parent_sa.worker_lock.unlock();
 		}
+		parent_sa.worker_lock.unlock();
+		try {
+			send(ControlMessage.yourturn());
+		} catch (IOException e) {
+			OpenBox.log(0, "Worker failed to send control message correctly : " + e);
+		}
+		//OpenBox.log(0, "Worker done ");
 	}
 	
 	public void status() {
@@ -229,7 +270,7 @@ public abstract class SyncAgent {
 		return ois.readObject();
 	}
 
-	public byte[] fetch_data(Block b) {
+	public void fetch_data(Block b) {
 		RandomAccessFile raf =null;
 		byte by[]=null;
 		try {
@@ -257,7 +298,7 @@ public abstract class SyncAgent {
 				}
 			}
 		}
-		return by;
+		return;
 	}
 	
 	public void delete_file(File f ) {
@@ -348,20 +389,40 @@ public abstract class SyncAgent {
 	
 	public State pull() {
 		State our_state=null;
-		try {
 			//send a pull to other side
-			send(ControlMessage.pull()); 
-			ControlMessage cm = (ControlMessage)recieve();
-			if (cm.type==ControlMessage.TRY_LATER) {
-				return our_state;
-			}
+			try {
+				send(ControlMessage.pull());
+				ControlMessage cm = (ControlMessage)recieve();
+				if (cm==null) {
+					OpenBox.log(0, "Error during recieve trying to recover...");
+					return null;
+				}
+				if (cm.type==ControlMessage.TRY_LATER) {
+					return our_state;
+				}
+			} catch (IOException e) {
+				OpenBox.log(0, "Failed to send/recieve pull control messages :  " + e);
+				return null;
+			} catch (ClassNotFoundException e) {
+				OpenBox.log(0, "Failed to send/recieve pull control messages :  " + e);
+				return null;
+			} 
 			
 			OpenBox.log(0, "Preparing to pull");
 			
 			//send a request for state
-			send(ControlMessage.rstate());
+			State other_state=null;
+			try {
+				send(ControlMessage.rstate());
+				other_state = (State)recieve();
+			} catch (IOException e) {
+				OpenBox.log(0, "Failed to recieve other state" + e);
+				return null;
+			} catch (ClassNotFoundException e) {
+				OpenBox.log(0, "Failed to recieve other state" + e);
+				return null;
+			}
 			//get back the other state
-			State other_state = (State)recieve();
 			our_state = new State(state);
 			//System.out.println("MY STATE:\n" + our_state);
 			
@@ -407,7 +468,10 @@ public abstract class SyncAgent {
 			        	if (checksums==null) {
 			        		OpenBox.log(0,"ERROR: Skipping file, checksums are not avaliable! " + other_filestate.repo_filename);
 			        	} else {
+			        		//OpenBox.log(0, "Asking for : " + other_filestate);
+			        		OpenBox.log(0, "Computing file delta for " + repo_filename);
 			        		FileDelta fd = new FileDelta(our_filestate,checksums);
+			        		OpenBox.log(0, "Transfering blocks for " + repo_filename);
 			        		//System.out.println(fd);
 			        		//System.exit(1);
 			        		//make sure the path here exists
@@ -415,53 +479,43 @@ public abstract class SyncAgent {
 			        		f.getParentFile().mkdirs();
 			        		f.setLastModified(0);
 			        		//now we have the file delta lets request to fill the blocks we need
-			        		final Lock file_lock = new ReentrantLock();
 			        		LinkedList<Block> remote_blocks=new LinkedList<Block>();
+			        		//OpenBox.log(0, "Getting the local blocks together for " + repo_filename);
 			        		for (Block b : fd.ll) {
 			        			if (b.local_block) {
 				        			b.data=null;
-				        			request_block(b);
-				        			file_lock.lock();
-				        			b.write_to_file(our_filestate.local_filename);
-				        			f.setLastModified(our_filestate.last_modified);
-				        			file_lock.unlock();
-				        			assert(b.data!=null);
+				        			if (b.src_offset==b.dest_offset) {
+				        				//skip this! its already there!!!
+				        			} else {
+				        				OpenBox.log(0, "requesting local block " + b);
+				        				request_block(b);
+				        				b.write_to_file(our_filestate.local_filename);
+				        				f.setLastModified(our_filestate.last_modified);
+					        			assert(b.data!=null);
+				        			}
 			        			} else {
 			        				remote_blocks.add(b);
 			        			}
 			        		}
 			        		
-			        		
-			        		worker_pull((LinkedList<Block>) remote_blocks.clone());
-			        		
-			        		for (Block b : remote_blocks){
-			        			//b.data=null;
-			        			assert(b.data!=null);
-			        			request_block(b);
-			        			if (b.data==null) {
-			        				abort_file=true;
-			        				OpenBox.log(0, "Aborted file sync!");
-			        				break;
-			        			} else {
-				        			file_lock.lock();
-				        			b.write_to_file(our_filestate.local_filename);
-				        			f.setLastModified(our_filestate.last_modified);
-				        			file_lock.unlock();
-				        			assert(b.data!=null);
-				        		}
-			        		}
-			        		//lets try to assemble it now
-			        		//fd.assemble_to(our_filestate.local_filename);
 
-			        		state.walk_file(f);
-			        		if (!abort_file) {
-			        			FileState fs = state.m.get(repo_filename);
-			        			if (fs.sha1.equals(other_filestate.sha1)) {
-					        		f.setLastModified(other_filestate.last_modified);
-			        			} else {
-			        				OpenBox.log(0, "Failed to transfer " +repo_filename);
-			        			}
-			        		}
+			        		//OpenBox.log(0, "Getting the remote blocks together for " + repo_filename);
+			        		worker_pull((LinkedList<Block>) remote_blocks,our_filestate);
+
+			        		try {
+								state.walk_file(f);
+				        		if (!abort_file) {
+				        			FileState fs = state.m.get(repo_filename);
+				        			if (fs.sha1.equals(other_filestate.sha1)) {
+						        		f.setLastModified(other_filestate.last_modified);
+				        			} else {
+				        				OpenBox.log(0, "Failed to transfer " +repo_filename + " sha1 does not match .. " + fs.sha1 + " vs " + other_filestate.sha1);
+				        			}
+				        		}
+							} catch (IOException e) {
+								OpenBox.log(0, "Failed to properly check file after reciving it :( " + e);
+								
+							}
 			        	}
 		        	} else {
 		        		//its a directory
@@ -476,29 +530,20 @@ public abstract class SyncAgent {
 		    }
 		    OpenBox.log(0, "Done pull");
 		    //System.out.println("Client finished pull successfully!");
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		
 		try {
 			send(ControlMessage.yourturn());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0, "Failed to send control message " + e);
 		}
 		return our_state;
 	}
 	
 	
-	public Block request_block(Block b) {
+	public void request_block(Block b) {
 		if (b.local_block) {
 			fetch_data(b);
-			return b;
+			return;
 		}
 		try {
 			send(ControlMessage.rblock(b));
@@ -506,15 +551,13 @@ public abstract class SyncAgent {
 			Block r = (Block)recieve();
 			//assert(r.data!=null);
 			b.data=r.data; //link up the new data
-			return b;
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0, "Failed to retrieve remote block correctly " + e);
+			b.data=null;
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0, "Failed to retrieve remote block correctly " + e);
+			b.data=null;
 		}
-		return null;
 	}
 	
 	public FileChecksum[] request_fcheck(FileState fs) {
@@ -523,11 +566,9 @@ public abstract class SyncAgent {
 	    	FileChecksum checksums[] = (FileChecksum[]) recieve();
 	    	return checksums;
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0, "Failed to retrieve remote file checksums correctly " + e);
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0, "Failed to retrieve remote file checksums correctly " + e);
 		}
     	return null;
 	}
@@ -540,14 +581,12 @@ public abstract class SyncAgent {
 			RollingChecksum rc = new RollingChecksum(filename);
 			send(rc.blocks());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0, "Failed to send remote file checksums correctly " + e);
 			try {
 				send(null);
 			} catch (IOException e1) {
-				// TODO Auto-generated catch block
 				e1.printStackTrace();
-				OpenBox.log(0, "file error and socket error, we are done!");
+				OpenBox.err(true, "file error and socket error, we are done!");
 				System.exit(1);
 			}
 		}
@@ -564,11 +603,9 @@ public abstract class SyncAgent {
 			//filled the request sending it back!
 			send(b);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0,"Failed to correctly recieve rblock : " + e );
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0,"Failed to correctly recieve rblock : " + e );
 		}
 	}
 	
@@ -576,8 +613,7 @@ public abstract class SyncAgent {
 		try {
 			send(state);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0, "Failed to send state correctly " + e);
 		}
 	}
 	
@@ -621,11 +657,9 @@ public abstract class SyncAgent {
 				}
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0,"Failed to correctly recieve next control message : " + e );
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0,"Failed to correctly recieve next control message : " + e );
 		}
 		return null;
 		
@@ -638,11 +672,9 @@ public abstract class SyncAgent {
 			assert(cm.type==ControlMessage.CLOSE);
 			return true;
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0,"Failed to properly close connection! : " + e );
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0,"Failed to properly close connection! : " + e );
 		}
 		return false;
 		

@@ -126,7 +126,7 @@ public class FileState implements Serializable {
 	}
 	
 	public String toString() {
-		return "Repo: "+repo_filename + " , Local: "+ local_filename + " , LastModified: " + (new Date(last_modified)) + " , send: "  + (send ? "Y" : "N") + " , deleted: " + (deleted ? "Y" : "N") + " , directory: " + (directory ? "Y" : "N");
+		return "Repo: "+repo_filename + " , Local: "+ local_filename + " , LastModified: " + (new Date(last_modified)) + " , send: "  + (send ? "Y" : "N") + " , deleted: " + (deleted ? "Y" : "N") + " , directory: " + (directory ? "Y" : "N") + " , sha1: "+ sha1;
 	}
 	
 }

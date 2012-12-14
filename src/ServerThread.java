@@ -22,11 +22,9 @@ public class ServerThread extends SyncAgent implements Runnable {
 				return cm.session_id;
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0,"Failed negotiate session handshake with client : " + e );
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			OpenBox.log(0,"Failed negotiate session handshake with client : " + e );
 		}
 		return null;
 		
@@ -43,8 +41,11 @@ public class ServerThread extends SyncAgent implements Runnable {
 		//lets handle the current connection
 		
 		
-		session_handshake();
-		assert(session_id!=null);
+		String r = session_handshake();
+		if (r==null) {
+			OpenBox.log(0, "Server thread exiting had an error!");
+			return;
+		}
 		
 		if (parent_sa==null) { 
 			OpenBox.log(0, "Spawned new server thread for connection from " + sckt.getRemoteSocketAddress());
@@ -56,7 +57,12 @@ public class ServerThread extends SyncAgent implements Runnable {
 			wait_for_listen_workers();
 			//let them start listening
 			workers_procced();
-			listen(client_read);
+			ControlMessage cm = listen(client_read);
+			if (cm==null) {
+				//an error happened need to exit
+				//TODO should really kill the workers here?
+				return;
+			}
 			if (client_read) {
 				server.client_done_read();
 			}
@@ -89,7 +95,11 @@ public class ServerThread extends SyncAgent implements Runnable {
 		} else {
 			worker_ready_to_listen();
 			//OpenBox.log(0, "Worker server side is listening!");
-			listen(false);
+			ControlMessage cm = listen(false);
+			if (cm==null) {
+				//TODO need to clean up here
+				return;
+			}
 			worker_ready_to_pull();
 			worker_help_pull();
 			listen(false);	

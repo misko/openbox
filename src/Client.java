@@ -30,9 +30,9 @@ public class Client extends SyncAgent implements Runnable {
 			assert(cm.type==ControlMessage.IN_SESSION);
 			return true;
 		} catch (IOException e) {
-			e.printStackTrace();
+			OpenBox.err(true,"Failed to get a resume session id from server : " + e );
 		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
+			OpenBox.err(true,"Failed to get a resume session id from server : " + e );
 		}
 		return false;
 	}
@@ -47,9 +47,9 @@ public class Client extends SyncAgent implements Runnable {
 			session_id=cm.session_id;
 			return true;
 		} catch (IOException e) {
-			e.printStackTrace();
+			OpenBox.err(true,"Failed to get a new session id from server : " + e );
 		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
+			OpenBox.err(true,"Failed to get a new session id from server : " + e );
 		}
 		return false;
 	}
@@ -82,34 +82,35 @@ public class Client extends SyncAgent implements Runnable {
 	
 	public void worker_connect() {
 		assert(session_id!=null);
-		try {
-			//Change regular Socket, instead use SSLSocketFactory (Dec 9, 2012)
-			//Socket sckt = new Socket(host_name, host_port);
+			//Open SSL socket
 			SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-			SSLSocket sckt = (SSLSocket) sslsocketfactory.createSocket(host_name, host_port);
+			SSLSocket sckt;
+			try {
+				sckt = (SSLSocket) sslsocketfactory.createSocket(host_name, host_port);
+			} catch (UnknownHostException e) {
+				OpenBox.log(0,"Unknown Host error!" + e);
+				return;
+			} catch (IOException e) {
+				OpenBox.log(0,"Socket/io error!" + e);
+				return;
+			}
 
-			//OpenBox.log(0, "Worker has connected to server " + sckt.getLocalSocketAddress()+ " -> " + sckt.getRemoteSocketAddress() + " resuming-session"+ session_id);
-			//make the syncagent aware
+			//make the syncagent aware of socket
 			set_socket(sckt);
 
 			resume_session();
 			parent_sa.add_worker(this);
 			
+			//lets see if we should pull new data
 			worker_ready_to_pull();
 			worker_help_pull();
+			
 			//now need to turn to listen mode
 			worker_ready_to_listen();
-			ControlMessage cm = listen(false);
-			assert(cm.type==ControlMessage.YOUR_TURN);
-			//OpenBox.log(0, "Worker client side closing");
+			listen(false);
 			
 			close();
 			close_socket();
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 	
 	private void spawn_workers() {
@@ -121,22 +122,27 @@ public class Client extends SyncAgent implements Runnable {
 				Thread t = new Thread(ct);
 				t.start();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				OpenBox.err(true, "Failed to spawn a worker thread! " + e.toString());
 			}
 		}
 	}
 	
 	public synchronized void synchronize_with_server() {
 		zero_worker_state();
-		try {
 			//make a new connection
 			OpenBox.log(0, "Client is connecting to server " + host_name+":"+host_port);
 			
-			//Change regular Socket, instead use SSLSocketFactory (Dec 9, 2012)
-			//Socket sckt = new Socket(host_name, host_port);
 			SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-			SSLSocket sckt = (SSLSocket) sslsocketfactory.createSocket(host_name, host_port);
+			SSLSocket sckt;
+			try {
+				sckt = (SSLSocket) sslsocketfactory.createSocket(host_name, host_port);
+			} catch (UnknownHostException e) {
+				OpenBox.log(0, "Failed to connect to server! " + e.toString());
+				return;
+			} catch (IOException e) {
+				OpenBox.log(0, "Failed to connect to server! " + e.toString());
+				return;
+			}
 			
 			//make the syncagent aware
 			set_socket(sckt);
@@ -168,7 +174,7 @@ public class Client extends SyncAgent implements Runnable {
 			ControlMessage cm = listen(true);
 			
 			//this should end in the server sending YOUR_TURN
-			assert(cm.type==ControlMessage.YOUR_TURN);
+			//assert(cm.type==ControlMessage.YOUR_TURN);
 			
 			//now lets initiate the disconnect sequence
 			close();
@@ -179,13 +185,6 @@ public class Client extends SyncAgent implements Runnable {
 			
 			
 			OpenBox.log(0, "Client has completed synchronization");
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		
 	}
 	
@@ -208,8 +207,7 @@ public class Client extends SyncAgent implements Runnable {
 					OpenBox.log(1, "Fake event fired, there is no change!");
 				}
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				OpenBox.log(0, "Encountered an error in file event listener : " + e.toString());
 			}
 			state_lock.unlock();
 		}
@@ -244,11 +242,12 @@ public class Client extends SyncAgent implements Runnable {
 					Thread.sleep(OpenBox.server_sync_delay);
 					synchronize_with_server();
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					OpenBox.log(0, "Failed to complete synchronization, got interrupt!" + e.toString());
 					break;
 				}
 			}
+
+			OpenBox.log(0, "Client is exiting!");
 		} else {
 			//this is a worker
 			worker_connect();

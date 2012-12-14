@@ -10,6 +10,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.vfs2.FileChangeEvent;
 import org.apache.commons.vfs2.FileListener;
 import org.apache.commons.vfs2.FileObject;
+import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.VFS;
 import org.apache.commons.vfs2.impl.DefaultFileMonitor;
@@ -113,7 +114,7 @@ public class Server {
 		return st;
 	}
 	
-	public Server(int listen_port, String repo_root, State state) throws IOException {
+	public Server(int listen_port, String repo_root, State state) {
 		this.listen_port=listen_port;
 		this.repo_root=repo_root;
 		this.state = state; 
@@ -124,11 +125,20 @@ public class Server {
 		SSLServerSocketFactory sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 		
 		//try to bind the socket (update Dec 9,2012)
-		server_socket = (SSLServerSocket) sslserversocketfactory.createServerSocket(listen_port);
+		try {
+			server_socket = (SSLServerSocket) sslserversocketfactory.createServerSocket(listen_port);
+		} catch (IOException e) {
+			OpenBox.err(true, "Failed to create SSL socket : " + e);
+		}
 		
 		//lets try to listen on the repo folder
-		FileSystemManager fsManager = VFS.getManager(); 
-		fo_repo_root = fsManager.resolveFile(repo_root); 
+		FileSystemManager fsManager;
+		try {
+			fsManager = VFS.getManager();
+			fo_repo_root = fsManager.resolveFile(repo_root); 
+		} catch (FileSystemException e) {
+			OpenBox.err(true, "Failed to create file system watchers" + e);
+		} 
 		ServerFileListener sfl = new ServerFileListener();  
 		DefaultFileMonitor fm = new DefaultFileMonitor(sfl);  
 		fm.setDelay(OpenBox.poll_delay);

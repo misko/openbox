@@ -43,6 +43,8 @@ public class Block implements Serializable {
 	 */
 	long size=0;
 	
+	boolean fully_recieved=false;
+	
 	//creates a request block for the given file, the given offset and the given size
 	/**
 	 * Creates a block request
@@ -91,7 +93,7 @@ public class Block implements Serializable {
 	
 	public long write_to_file(String local_filename_out) {
 		try {			
-			RandomAccessFile raf = new RandomAccessFile(local_filename_out,"rws");
+			RandomAccessFile raf = new RandomAccessFile(local_filename_out,"rw");
 			assert(size<(1<<15)); //casting to int, just make sure
 			raf.seek(dest_offset);
 			raf.write(data);
@@ -100,6 +102,19 @@ public class Block implements Serializable {
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return -1;
+	}
+	
+	public long write_to_file(RandomAccessFile raf) {
+		assert(size<(1<<15)); //casting to int, just make sure
+		try {
+			raf.seek(dest_offset);
+			raf.write(data);
+			return size;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
