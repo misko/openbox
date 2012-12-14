@@ -23,8 +23,10 @@ public class ServerThread extends SyncAgent implements Runnable {
 			}
 		} catch (IOException e) {
 			OpenBox.log(0,"Failed negotiate session handshake with client : " + e );
+			e.printStackTrace();
 		} catch (ClassNotFoundException e) {
 			OpenBox.log(0,"Failed negotiate session handshake with client : " + e );
+			e.printStackTrace();
 		}
 		return null;
 		

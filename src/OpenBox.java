@@ -24,10 +24,10 @@ public class OpenBox {
 	static int listen_port;
 	static boolean set_repo_root=false;
 	static String repo_root;
-	public static int client_bytes_in_per_second=500000;
-	public static int client_bytes_out_per_second=500000;
-	public static int server_bytes_in_per_second=500000;
-	public static int server_bytes_out_per_second=500000;
+	public static int client_bytes_in_per_second=1000000;
+	public static int client_bytes_out_per_second=1000000;
+	public static int server_bytes_in_per_second=1000000;
+	public static int server_bytes_out_per_second=1000000;
 	public static int num_workers=3;
 	public static long status_period=5000;
 	

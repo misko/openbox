@@ -16,6 +16,7 @@ public class ManagedInputStream extends InputStream {
 	public ManagedInputStream(InputStream is) {
 		this.is=is;
 	}
+
 	
 	@Override
 	public int read() throws IOException {

@@ -17,6 +17,7 @@ public class ManagedOutputStream extends OutputStream {
 		bytes_per_second=in;
 	}
 	
+	
 	@Override
 	public void write(int b) throws IOException {
 

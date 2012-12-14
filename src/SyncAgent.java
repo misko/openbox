@@ -230,6 +230,8 @@ public abstract class SyncAgent {
 			mis.set_bw_limit(bytes_out_per_second);
 			oos=new ObjectOutputStream(mos);
 			ois=new ObjectInputStream(mis);
+			/*oos=new ObjectOutputStream(sckt.getOutputStream());
+			ois=new ObjectInputStream(sckt.getInputStream());*/
 			status_timer = new Timer("Status");
 			
 			
@@ -262,12 +264,14 @@ public abstract class SyncAgent {
 	
 	public void send(Object o) throws IOException {
 		oos.writeObject(o);
+		oos.reset();
 	}
 	
 
 	
 	public Object recieve() throws IOException, ClassNotFoundException {
-		return ois.readObject();
+		Object o = ois.readObject();
+		return o;
 	}
 
 	public void fetch_data(Block b) {
