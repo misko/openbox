@@ -24,10 +24,10 @@ public class OpenBox {
 	static int listen_port;
 	static boolean set_repo_root=false;
 	static String repo_root;
-	public static int client_bytes_in_per_second=1000000;
-	public static int client_bytes_out_per_second=1000000;
-	public static int server_bytes_in_per_second=1000000;
-	public static int server_bytes_out_per_second=1000000;
+	public static int client_bytes_in_per_second=0;
+	public static int client_bytes_out_per_second=0;
+	public static int server_bytes_in_per_second=0;
+	public static int server_bytes_out_per_second=0;
 	public static int num_workers=3;
 	public static long status_period=5000;
 	
@@ -64,14 +64,14 @@ public class OpenBox {
 		System.out.println("--server/-s\tthe server ip/hostname to connect to");
 		System.out.println("--up/-u\tthe total maximum kilo-bytes per second upload");
 		System.out.println("--down/-d\tthe total maximum kilo-bytes per second download");
-		System.out.println("--threads/-t\tthe number of threads to use");
+		System.out.println("--threads/-t\tthe number of threads to use, default : " + num_workers);
 		System.out.println("--trust-store-path/-tsp\tthe path to ssl trust/keystore - default : repo_root/myKeystore");
 		System.out.println("--trust-store-password/-tspass\tthe password for the trust/key store - default : \"123456\"");
-		System.out.println("--block-size/-bs\tthe block size (in kilo-bytes) to use for file segmentation");
-		System.out.println("--file-system-poll-delay/-poll\tthe time (in seconds) to use for file system polling");
-		System.out.println("--client-timeout-sync/-cts\tthe maximum time (in seconds) to wait before client checks in with server");
-		System.out.println("--status-period/-sp\tthe period (in seconds) between network status updates");
-		System.out.println("--no-ssl/-ns\tdon't use ssl");
+		System.out.println("--block-size/-bs\tthe block size (in kilo-bytes) to use for file segmentation , default: " + block_size/bytes_per_kilobyte);
+		System.out.println("--file-system-poll-delay/-poll\tthe time (in seconds) to use for file system polling, default: " + poll_delay/mili_per_second);
+		System.out.println("--client-timeout-sync/-cts\tthe maximum time (in seconds) to wait before client checks in with server, default: " + server_sync_delay/mili_per_second);
+		System.out.println("--status-period/-sp\tthe period (in seconds) between network status updates, default: " + status_period/mili_per_second);
+		System.out.println("--no-ssl/-ns\tdon't use SSL, default: use SSL");
 		System.out.println("------------------");
 		
 	}
