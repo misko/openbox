@@ -1,13 +1,9 @@
 import java.io.BufferedInputStream;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.util.LinkedList;
-import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.zip.Adler32;
 /**
  * This class is used to compute the adler64 checksums of a file.
  * 

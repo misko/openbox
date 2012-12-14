@@ -174,7 +174,7 @@ public class Client extends SyncAgent implements Runnable {
 			workers_to_listen();
 			wait_for_listen_workers();
 			workers_procced();
-			ControlMessage cm = listen(true);
+			listen(true);
 			
 			//this should end in the server sending YOUR_TURN
 			//assert(cm.type==ControlMessage.YOUR_TURN);

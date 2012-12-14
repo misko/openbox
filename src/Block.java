@@ -1,6 +1,4 @@
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.Serializable;
@@ -16,6 +14,10 @@ import java.io.Serializable;
  * This object is the carrier of actual file data between sides.
  */
 public class Block implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6240487917241834187L;
 	/**
 	 * The repository name of the file
 	 */

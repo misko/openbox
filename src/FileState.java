@@ -9,6 +9,10 @@ import java.util.Date;
  */
 public class FileState implements Serializable {
 	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 7082165484912313916L;
+	/**
 	 * The filename with respect to repository root
 	 */
 	String repo_filename;

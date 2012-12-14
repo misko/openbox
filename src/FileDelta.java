@@ -2,7 +2,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 
 /**
@@ -145,12 +144,12 @@ public class FileDelta {
 		//we have all the bytes we need!
 		try {
 			FileOutputStream fos = new FileOutputStream(local_filename_out);
-
 			for (Block b : ll) {
 				assert(b.data!=null);
 				fos.write(b.data);
 				out_bytes+=b.data.length;
 			}
+			fos.close();
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

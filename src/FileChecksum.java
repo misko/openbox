@@ -1,5 +1,4 @@
 import java.io.Serializable;
-import java.util.LinkedList;
 
 /**
  * This is a wrapper class for size , adler64 hash and md5 hash of a block of data.
@@ -9,6 +8,10 @@ import java.util.LinkedList;
  *
  */
 public class FileChecksum implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6906625089862271966L;
 	long size;
 	long adler64;
 	String md5;

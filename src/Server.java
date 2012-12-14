@@ -19,7 +19,6 @@ import org.apache.commons.vfs2.impl.DefaultFileMonitor;
 
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
-import javax.net.ssl.SSLSocket;
 
 
 public class Server {

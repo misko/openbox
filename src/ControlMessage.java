@@ -11,6 +11,10 @@ public class ControlMessage implements Serializable {
 	//public static final int STATE = 1<<0; //not used
 	
 	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3126124533792602536L;
+	/**
 	 * Used to request State object from other side
 	 */
 	public static final int RSTATE = 1<<1; 

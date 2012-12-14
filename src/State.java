@@ -5,7 +5,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
-import java.util.regex.Pattern;
 
 /**
  * The State object contains the current state of the repository.
@@ -15,6 +14,10 @@ import java.util.regex.Pattern;
  *
  */
 public class State implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -435419894434520268L;
 	/**
 	 * The time of last synchronization
 	 * Currently not implemented. :(
@@ -121,7 +124,7 @@ public class State implements Serializable {
 		boolean change=false;
 	    while (it.hasNext()) {
 	        Entry<String,FileState> pair = it.next();
-	        String repo_filename = pair.getKey();
+	       //String repo_filename = pair.getKey();
 	        FileState fs=pair.getValue();
 	        File f = new File(fs.local_filename);
 	        if (!fs.deleted && !f.exists()) {

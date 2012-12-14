@@ -97,7 +97,10 @@ public abstract class SyncAgent {
 		
 		
 		
-		worker_blocks=(LinkedList<Block>) remote_blocks.clone();
+		@SuppressWarnings("unchecked")
+		LinkedList<Block> clone = (LinkedList<Block>) remote_blocks.clone();
+		worker_blocks=clone;
+		
 		total_worker_blocks=remote_blocks.size();
 		assert(worker_blocks_done==0);
 		//run the requesters
@@ -444,7 +447,7 @@ public abstract class SyncAgent {
 		    while (it.hasNext()) {
 		        Entry<String,FileState> pair = it.next();
 		        String repo_filename = pair.getKey();
-		        FileState other_filestate = pair.getValue();
+		        //FileState other_filestate = pair.getValue();
 		        FileState our_filestate = our_state.m.get(repo_filename);
 		        File f = new File(our_filestate.local_filename);
 		        if (our_filestate.deleted && f.exists()) {
