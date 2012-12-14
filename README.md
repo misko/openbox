@@ -17,10 +17,10 @@ Step 2: Prepare certificate for SSL connection.<br>
 Create new certificate by using keytool or just copy existing certificate ("myKeystore") from lib folder to the client's and server's repository.
 
 Step 3: Run the server. We provide jar file for user to run the program more easily by using this command:<br>
-java -jar openbox.jar -p <port_number> -r <server_repository_path>
+java -jar openbox.jar -p [port_number] -r [server_repository_path]
 
 Step 4: Run the client. We provide jar file for user to run the program more easily  by using this command:<br>
-java -jar openbox.jar -p <port_number> -s <server_ip_address> -r <client_repository_path>
+java -jar openbox.jar -p [port_number] -s [server_ip_address] -r [client_repository_path]
 
 ********************************************************************************************************************************************************
 We provide jar file to run the code. So user don't have to add apache commons jar files (already included in the libs folder) to the classpath manually.<br>
