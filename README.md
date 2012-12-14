@@ -4,19 +4,37 @@ CSC2209 Computer Network
 
 How to run the program:
 
-Step 1: Add apache commons jar files to the classpath. <br> 
-The jar files are already included in the lib folder of the project, so just run this command:<br>
-java -cp .;..\libs\commons-logging-1.1.1.jar\libs\commons-vfs2-2.0.jar OpenBox
-
-Step 2: Create repository folder for client and server.<br>
+Step 1: Create repository folder for client and server.<br>
 For example folder "Client" for client repository and "Server" for server repository.
 
-Step 3: Prepare certificate for SSL connection.<br>
+Step 2: Prepare certificate for SSL connection.<br>
 Create new certificate by using keytool or just copy existing certificate ("mySrvKeystore") from lib folder to the client's and server's repository.
 
-Step 4: Run the server by using this command:<br>
-java -cp "..\libs\commons-logging-1.1.1.jar;..\libs\commons-vfs2-2.0.jar" OpenBox -p <port_number> -r <server_repository_path>
+Step 3: Run the server by using this command:<br>
+java  -jar OpenBox.jar OpenBox -p <port_number> -r <server_repository_path>
 
-Step 5: Run the client by using this command:<br>
-java -cp "..\bin;..libs\commons-logging-1.1.1.jar;..\libs\commons-vfs2-2.0.jar" OpenBox -p <port_number> -s <server_ip_address> -r <client_repository_path>
+Step 4: Run the client by using this command:<br>
+java -jar OpenBox.jar OpenBox -p <port_number> -s <server_ip_address> -r <client_repository_path>
 
+
+
+
+OpenBox
+------------------
+Using in server mode: java OpenBox-p port_to_listen_on -r repository_root
+Using in client mode: java OpenBox-p port_to_connect_on -s servername_or_ip -r repository_root
+------------------
+--port/-p	the port to connect or listen on
+--repo/-r	the path to repository root
+--server/-s	the server ip/hostname to connect to
+--up/-u	the total maximum kilo-bytes per second upload
+--down/-d	the total maximum kilo-bytes per second download
+--threads/-t	the number of threads to use, default : 3
+--trust-store-path/-tsp	the path to ssl trust/keystore - default : repo_root/myKeystore
+--trust-store-password/-tspass	the password for the trust/key store - default : "123456"
+--block-size/-bs	the block size (in kilo-bytes) to use for file segmentation , default: 16
+--file-system-poll-delay/-poll	the time (in seconds) to use for file system polling, default: 1
+--client-timeout-sync/-cts	the maximum time (in seconds) to wait before client checks in with server, default: 15
+--status-period/-sp	the period (in seconds) between network status updates, default: 5
+--no-ssl/-ns	don't use SSL, default: use SSL
+------------------
