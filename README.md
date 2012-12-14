@@ -4,12 +4,6 @@ CSC2209 Computer Network
 
 How to run the program:
 
-openbox project
-===============
-CSC2209 Computer Network
-
-How to run the program:
-
 Step 1: Create repository folder for client and server.<br>
 For example folder "Client" for client repository and "Server" for server repository.
 
