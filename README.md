@@ -4,25 +4,36 @@ CSC2209 Computer Network
 
 How to run the program:
 
+openbox project
+===============
+CSC2209 Computer Network
+
+How to run the program:
+
 Step 1: Create repository folder for client and server.<br>
 For example folder "Client" for client repository and "Server" for server repository.
 
 Step 2: Prepare certificate for SSL connection.<br>
-Create new certificate by using keytool or just copy existing certificate ("mySrvKeystore") from lib folder to the client's and server's repository.
+Create new certificate by using keytool or just copy existing certificate ("myKeystore") from lib folder to the client's and server's repository.
 
-Step 3: Run the server by using this command:<br>
-java  -jar OpenBox.jar OpenBox -p <port_number> -r <server_repository_path>
+Step 3: Run the server. We provide jar file for user to run the program more easily by using this command:<br>
+java -jar openbox.jar -p <port_number> -r <server_repository_path>
 
-Step 4: Run the client by using this command:<br>
-java -jar OpenBox.jar OpenBox -p <port_number> -s <server_ip_address> -r <client_repository_path>
+Step 4: Run the client. We provide jar file for user to run the program more easily  by using this command:<br>
+java -jar openbox.jar -p <port_number> -s <server_ip_address> -r <client_repository_path>
 
+********************************************************************************************************************************************************<br>
+We provide jar file to run the code. So user don't have to add apache commons jar files (already included in the libs folder) to the classpath manually.<br>
+But if user don't want to use the jar file, here is how to add apache commons jar files to the classpath: <br>
+java -cp .;..\libs\commons-logging-1.1.1.jar\libs\commons-vfs2-2.0.jar OpenBox<br>
+********************************************************************************************************************************************************
 
-
+There are more options of how to run the server and client. The details are explained below:
 
 	OpenBox
 	------------------
-	Using in server mode: java OpenBox-p port_to_listen_on -r repository_root
-	Using in client mode: java OpenBox-p port_to_connect_on -s servername_or_ip -r repository_root
+	Using in server mode: java OpenBox -p port_to_listen_on -r repository_root
+	Using in client mode: java OpenBox -p port_to_connect_on -s servername_or_ip -r repository_root
 	------------------
 	--port/-p	the port to connect or listen on
 	--repo/-r	the path to repository root
