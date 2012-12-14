@@ -60,6 +60,8 @@ public class FileState implements Serializable {
 	 */
 	boolean directory;
 	
+	boolean confirm_deleted;
+	
 	public FileState(FileState fs) {
 		this.repo_filename=fs.repo_filename;
 		this.local_filename=fs.local_filename;
@@ -70,6 +72,7 @@ public class FileState implements Serializable {
 		this.deleted=fs.deleted;
 		this.earliest_deleted_time=fs.earliest_deleted_time;
 		this.directory=fs.directory;
+		this.confirm_deleted=fs.confirm_deleted;
 	}
 	
 	public static FileState from_file(String repo_filename, String local_filename, boolean directory) {
@@ -79,11 +82,12 @@ public class FileState implements Serializable {
 			return fs;
 		}
 		try {
+			fs.last_modified=file.lastModified(); //this has to go before checksum!!!!
+			
 			if (!directory) {
 				fs.sha1=SHA1.ChecksumFile(local_filename);
 				fs.size = file.length();
 			}
-			fs.last_modified=file.lastModified();
 
 		} catch (IOException e) {
 			e.printStackTrace();

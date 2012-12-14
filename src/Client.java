@@ -17,7 +17,7 @@ import javax.net.ssl.SSLSocketFactory;
 
 public class Client extends SyncAgent implements Runnable {
 	FileObject fo_repo_root;
-	final Lock state_lock = new ReentrantLock();
+	//final Lock state_lock = new ReentrantLock();
 	String host_name;
 	int host_port;
 	
@@ -111,7 +111,7 @@ public class Client extends SyncAgent implements Runnable {
 			assert(session_id!=null);
 		
 			connect_socket();
-
+			
 			resume_session();
 			parent_sa.add_worker(this);
 			
@@ -120,7 +120,9 @@ public class Client extends SyncAgent implements Runnable {
 			worker_help_pull();
 			
 			//now need to turn to listen mode
+
 			worker_ready_to_listen();
+			
 			listen(false);
 			
 			close();
@@ -142,13 +144,15 @@ public class Client extends SyncAgent implements Runnable {
 	}
 	
 	public synchronized void synchronize_with_server() {
-		zero_worker_state();
+			zero_worker_state();
 			//make a new connection
+			OpenBox.log_skip();
 			OpenBox.log(0, "Client is connecting to server " + host_name+":"+host_port);
+			
 			
 
 			connect_socket();
-			
+			start_status();
 			
 			get_new_session_id();
 			assert(session_id!=null);
@@ -158,7 +162,6 @@ public class Client extends SyncAgent implements Runnable {
 			
 			spawn_workers();
 			
-			state_lock.lock();
 
 			turn_on_status(OpenBox.status_period);
 			//do a quick look at repo entries
@@ -172,8 +175,10 @@ public class Client extends SyncAgent implements Runnable {
 
 			//lets do a push to the server if we can
 			workers_to_listen();
+			
 			wait_for_listen_workers();
 			workers_procced();
+
 			listen(true);
 			
 			//this should end in the server sending YOUR_TURN
@@ -184,9 +189,7 @@ public class Client extends SyncAgent implements Runnable {
 
 			close_socket();
 			
-			state_lock.unlock();
-			
-			
+			end_status();
 			OpenBox.log(0, "Client has completed synchronization");
 		
 	}
@@ -195,13 +198,15 @@ public class Client extends SyncAgent implements Runnable {
 		private void changeEvent(FileChangeEvent fce) {
 			FileObject fo = fce.getFile();
 			String repo_filename = fo.getName().getPath().replace(fo_repo_root.getName().getPath(), "");
-			OpenBox.log(1, "Client has detected that "+ repo_filename+ " has been changed!");
+			OpenBox.log(0, "Client has detected that "+ repo_filename+ " has been changed!");
 			//ok, update the respective file in the state
-			state_lock.lock();
+			
 			//System.out.println("State before: " + state);
 			boolean change;
 			try {
+				state.state_lock.lock();
 				change = state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
+				state.state_lock.unlock();
 				//change = state.check_for_zombies() || change;
 				//System.out.println("State after: " + state);
 				if (change) {
@@ -212,7 +217,6 @@ public class Client extends SyncAgent implements Runnable {
 			} catch (IOException e) {
 				OpenBox.log(0, "Encountered an error in file event listener : " + e.toString());
 			}
-			state_lock.unlock();
 		}
 		
 		@Override

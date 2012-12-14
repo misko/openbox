@@ -40,11 +40,18 @@ public class OpenBox {
 	
 	
 	
+	
+	
 	public static void log(int level, String s) {
 		if (debug_level>level) {
 			System.out.println( dateFormat.format(new Date()) + "\tThread: " + Thread.currentThread().getId() + "\t"+s);
 		}
 	}	
+	
+
+	public static void log_skip() {
+		System.out.println("\n");
+	}
 	
 	public static void err(boolean exit, String s) {
 		System.out.println( dateFormat.format(new Date()) + "\tThread: " + Thread.currentThread().getId() + "\t"+s);
@@ -56,8 +63,8 @@ public class OpenBox {
 	public static void usage() {
 		String program_name="java OpenBox";
 		System.out.println("OpenBox"+"\n"+"------------------");
-		System.out.println("Using in server mode: " + program_name + "-p port_to_listen_on -r repository_root");
-		System.out.println("Using in client mode: " + program_name + "-p port_to_connect_on -s servername_or_ip -r repository_root");
+		System.out.println("Using in server mode: " + program_name + " -p port_to_listen_on -r repository_root");
+		System.out.println("Using in client mode: " + program_name + " -p port_to_connect_on -s servername_or_ip -r repository_root");
 		System.out.println("------------------");
 		System.out.println("--port/-p\tthe port to connect or listen on");
 		System.out.println("--repo/-r\tthe path to repository root");
@@ -353,5 +360,6 @@ public class OpenBox {
 		}
 		
 	}
+
 
 }

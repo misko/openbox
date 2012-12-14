@@ -19,6 +19,8 @@ public class ServerThread extends SyncAgent implements Runnable {
 				session_id = cm.session_id;
 				parent_sa=server.connect_worker(cm.session_id, this);
 				send(ControlMessage.in_session(session_id));
+				mos.set_bw_limit(bytes_in_per_second/OpenBox.num_workers);
+				mis.set_bw_limit(bytes_in_per_second/OpenBox.num_workers);
 				return cm.session_id;
 			}
 		} catch (IOException e) {
@@ -49,10 +51,14 @@ public class ServerThread extends SyncAgent implements Runnable {
 			return;
 		}
 		
-		if (parent_sa==null) { 
+		if (parent_sa==null) {
+
+			OpenBox.log_skip();
 			OpenBox.log(0, "Spawned new server thread for connection from " + sckt.getRemoteSocketAddress());
+			start_status();
 			turn_on_status(OpenBox.status_period);
-			server.quick_repo_walk();
+			
+			state.quick_repo_walk();
 			
 			boolean client_read = server.client_read();
 			//get the workers ready to listen
@@ -75,7 +81,6 @@ public class ServerThread extends SyncAgent implements Runnable {
 			workers_procced();
 			
 			//now lets try to pull
-			server.state_lock.lock();
 			boolean client_push = server.client_push();
 			if (client_push) {
 				pull();
@@ -88,11 +93,11 @@ public class ServerThread extends SyncAgent implements Runnable {
 					e.printStackTrace();
 				}
 			}
-			server.state_lock.unlock();
 
 			workers_to_listen();
 			
 			listen(false);	
+			end_status();
 			OpenBox.log(0, "Server is closing connection " + session_id);
 		} else {
 			worker_ready_to_listen();

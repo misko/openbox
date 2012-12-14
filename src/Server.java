@@ -40,7 +40,7 @@ public class Server {
 	State state; //set to the last state that was syncd, either with remote or with local
 	
 
-	final Lock state_lock = new ReentrantLock();
+	//final Lock state_lock = new ReentrantLock();
 	
 
 	
@@ -155,11 +155,6 @@ public class Server {
 	}
 	
 
-	public void quick_repo_walk(){ 
-		state_lock.lock();
-		state.quick_repo_walk();
-		state_lock.unlock();
-	}
 	
 	public void listen() {
 		//make the server listen
@@ -185,18 +180,18 @@ public class Server {
 			String repo_filename = fo.getName().getPath().replace(fo_repo_root.getName().getPath(), "");
 			//System.out.println("Server has detected that "+ repo_filename+ " has been changed!");
 			//ok, update the respective file in the state
-			state_lock.lock();
 			//System.out.println("State before: " + state);
 			System.out.println("Event for "+repo_filename);
 			try {
+				state.state_lock.lock();
 				state.walk_file(new File(repo_root+File.separatorChar+repo_filename));
+				state.state_lock.unlock(); 
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			//state.check_for_zombies();
 			//System.out.println("State after: " + state);
-			state_lock.unlock(); 
 		}
 		
 		@Override

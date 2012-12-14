@@ -5,6 +5,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * The State object contains the current state of the repository.
@@ -31,7 +33,7 @@ public class State implements Serializable {
 	 * The path for the root of the repository on the local filesystem
 	 */
 	String repo_path;
-	
+	final Lock state_lock = new ReentrantLock();
 	
 	public State(State s) {
 		this.last_sync=s.last_sync;
@@ -124,13 +126,33 @@ public class State implements Serializable {
 		boolean change=false;
 	    while (it.hasNext()) {
 	        Entry<String,FileState> pair = it.next();
-	       //String repo_filename = pair.getKey();
+	        String repo_filename = pair.getKey();
 	        FileState fs=pair.getValue();
 	        File f = new File(fs.local_filename);
 	        if (!fs.deleted && !f.exists()) {
+	        	OpenBox.log(0, "removing file because does not exist" + repo_filename);
 	        	fs.deleted=true;
 	        	fs.earliest_deleted_time=(new Date()).getTime()-OpenBox.poll_delay;
 	        	change=true;
+	        } else if (fs.deleted && f.exists()) {
+	        	if (fs.earliest_deleted_time<f.lastModified() || fs.confirm_deleted) {
+		        	OpenBox.log(0, "Bringing back " + repo_filename);
+		        	f.setLastModified(System.currentTimeMillis());
+	        		String local_filename;
+					try {
+						local_filename = f.getCanonicalPath();
+						FileState new_fs =  FileState.from_file(repo_filename, local_filename,f.isDirectory());
+						m.put(repo_filename, new_fs);
+						change=true;
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+	        	} else {
+	        		//OpenBox.log(0,"Cant help " + repo_filename + " " + fs + " earliest delete time : " + new Date(fs.earliest_deleted_time));
+	        	}
+	        } else if (fs.deleted && !f.exists()) {
+	        	fs.confirm_deleted=true;
 	        }
 	    }
 	    return change;
@@ -168,12 +190,40 @@ public class State implements Serializable {
 	}
 	
 	public boolean quick_repo_walk()  {
+		state_lock.lock();
 		//for every file in the repo make sure its in the index
 		File f = new File(repo_path);
 		boolean change = check_new(f);
 		//for every file in the index see if its alive
 		change = check_deleted() || change;
+
+		state_lock.unlock();
 		return change;
+	}
+	
+	
+	public void delete_file(File f ) {
+		try {
+			OpenBox.log(0, "Deleting file " + f.getCanonicalPath() + " " + f.lastModified() + " ");
+		} catch (IOException e) {
+			//do nothing....
+		}
+		if (f.isDirectory()) {
+			for (File c : f.listFiles()) {
+				delete_file(c);
+			}
+		}
+		f.delete();
+		if (!f.exists()) {
+			try {
+				String repo_filename=f.getCanonicalPath().replace(repo_path, "");
+				if (m.containsKey(repo_filename)) {
+					m.get(repo_filename).confirm_deleted=true;
+				}
+			} catch (IOException e) {
+				OpenBox.log(0, "Failed to set confirm_deleted for file");
+			}
+		}
 	}
 	
 	/**
