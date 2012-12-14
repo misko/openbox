@@ -1,5 +1,6 @@
 import java.io.File;
 import java.io.IOException;
+import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -80,23 +81,36 @@ public class Client extends SyncAgent implements Runnable {
 		
 	}
 	
-	public void worker_connect() {
-		assert(session_id!=null);
-			//Open SSL socket
+	private void connect_socket() {
+		Socket local_sckt = null;
+		if (OpenBox.use_ssl) {
 			SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-			SSLSocket sckt;
 			try {
-				sckt = (SSLSocket) sslsocketfactory.createSocket(host_name, host_port);
+				local_sckt = (SSLSocket) sslsocketfactory.createSocket(host_name, host_port);
 			} catch (UnknownHostException e) {
-				OpenBox.log(0,"Unknown Host error!" + e);
+				OpenBox.log(0, "Failed to connect to server! " + e.toString());
 				return;
 			} catch (IOException e) {
-				OpenBox.log(0,"Socket/io error!" + e);
+				OpenBox.log(0, "Failed to connect to server! " + e.toString());
 				return;
 			}
-
-			//make the syncagent aware of socket
-			set_socket(sckt);
+		} else {
+			try {
+				local_sckt = new Socket(host_name, host_port);
+			} catch (UnknownHostException e) {
+				OpenBox.log(0, "Failed to connect to server! " + e.toString());
+			} catch (IOException e) {
+				OpenBox.log(0, "Failed to connect to server! " + e.toString());
+			}
+		}
+		//make the syncagent aware
+		set_socket(local_sckt);
+	}
+	
+	public void worker_connect() {
+			assert(session_id!=null);
+		
+			connect_socket();
 
 			resume_session();
 			parent_sa.add_worker(this);
@@ -132,20 +146,9 @@ public class Client extends SyncAgent implements Runnable {
 			//make a new connection
 			OpenBox.log(0, "Client is connecting to server " + host_name+":"+host_port);
 			
-			SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-			SSLSocket sckt;
-			try {
-				sckt = (SSLSocket) sslsocketfactory.createSocket(host_name, host_port);
-			} catch (UnknownHostException e) {
-				OpenBox.log(0, "Failed to connect to server! " + e.toString());
-				return;
-			} catch (IOException e) {
-				OpenBox.log(0, "Failed to connect to server! " + e.toString());
-				return;
-			}
+
+			connect_socket();
 			
-			//make the syncagent aware
-			set_socket(sckt);
 			
 			get_new_session_id();
 			assert(session_id!=null);

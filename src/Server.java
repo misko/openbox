@@ -1,6 +1,8 @@
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.concurrent.locks.Condition;
@@ -28,7 +30,7 @@ public class Server {
 	final Condition client_closed  = lock.newCondition(); //locks to make sure we know whats going down
 	FileObject fo_repo_root;
 	
-	SSLServerSocket server_socket;
+	ServerSocket server_socket;
 	int listen_port;
 	String repo_root;
 	
@@ -120,15 +122,21 @@ public class Server {
 		this.state = state; 
 		
 		sessions=new HashMap<String, ServerThread>();
-		
-		//SSLServerSocketFactory (Dec 9, 2012)
-		SSLServerSocketFactory sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
-		
-		//try to bind the socket (update Dec 9,2012)
-		try {
-			server_socket = (SSLServerSocket) sslserversocketfactory.createServerSocket(listen_port);
-		} catch (IOException e) {
-			OpenBox.err(true, "Failed to create SSL socket : " + e);
+
+		if (OpenBox.use_ssl) {
+			SSLServerSocketFactory sslserversocketfactory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+
+			try {
+				server_socket = (SSLServerSocket) sslserversocketfactory.createServerSocket(listen_port);
+			} catch (IOException e) {
+				OpenBox.err(true, "Failed to create SSL socket : " + e);
+			}
+		} else {
+			try {
+				server_socket = new ServerSocket(listen_port);
+			} catch (IOException e) {
+				OpenBox.err(true, "Failed to create server socket : " + e);
+			}
 		}
 		
 		//lets try to listen on the repo folder
@@ -156,10 +164,9 @@ public class Server {
 	
 	public void listen() {
 		//make the server listen
-		SSLSocket sckt;
 		try {
 			//OpenBox.log(0, "Server is listening on " + server_socket.getLocalSocketAddress());
-			sckt = (SSLSocket) server_socket.accept();
+			Socket sckt =  server_socket.accept();
 			
 			ServerThread st = new ServerThread(this,sckt,repo_root,state);
 			//lets put the session into the map

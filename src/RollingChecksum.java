@@ -31,10 +31,10 @@ public class RollingChecksum {
 	public RollingChecksum(String filename) throws FileNotFoundException {
 		bis=new BufferedInputStream(new FileInputStream(filename));
 		
-		data=new ArrayBlockingQueue<Byte>(OpenBox.blocksize*2);
+		data=new ArrayBlockingQueue<Byte>(OpenBox.block_size*2);
 		
 		// initialize the rolling checksum
-		update(OpenBox.blocksize);
+		update(OpenBox.block_size);
 		//System.out.println("INITIALIZED WITH "+data.size());
 		initialized=true;
 	}
@@ -55,7 +55,7 @@ public class RollingChecksum {
 			}
 			ll.add(new FileChecksum(h[0],h[1],MD5.MD5string(by)));
 			//System.out.println(""+ h[0]+ " " +h[1] + " " + data.size());
-		} while (update(OpenBox.blocksize)>0);
+		} while (update(OpenBox.block_size)>0);
 
 		OpenBox.log(0, "Done computing rolling checksum (blocks)");
 		return ll.toArray(new FileChecksum[0]);
@@ -104,7 +104,7 @@ public class RollingChecksum {
 		long bp=0;
 		for (Byte y : data) {
 			ap=(ap-y)%modp;
-			bp=(bp-OpenBox.blocksize*y)%modp;
+			bp=(bp-OpenBox.block_size*y)%modp;
 		}
 		return ((bp&mask)<<32)+(ap&mask);
 	}
@@ -131,7 +131,7 @@ public class RollingChecksum {
 					//System.out.println("removing old byte");
 					Byte y = data.poll();
 					a = (a - y) % modp;
-					b = (b - OpenBox.blocksize * y) % modp;
+					b = (b - OpenBox.block_size * y) % modp;
 				} else {
 					//System.out.println("not popping byte " + data.size());
 				}

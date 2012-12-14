@@ -23,14 +23,16 @@ public class ManagedInputStream extends InputStream {
 		long start_time = System.currentTimeMillis();
 		int r = is.read();
 		
-		long wait_time = (long) (((double)1000)/bytes_per_second);
-		long already_waited_time = System.currentTimeMillis() - start_time;
-		if (already_waited_time<wait_time) {
-			try {
-					Thread.sleep(wait_time-already_waited_time);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+		if (bytes_per_second>0) {
+			long wait_time = (long) (((double)1000)/bytes_per_second);
+			long already_waited_time = System.currentTimeMillis() - start_time;
+			if (already_waited_time<wait_time) {
+				try {
+						Thread.sleep(wait_time-already_waited_time);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 		}
 		
@@ -45,36 +47,39 @@ public class ManagedInputStream extends InputStream {
 	
 	@Override
 	public int read(byte[] b, int off, int len) throws IOException  {
-
-		//OpenBox.log(0, "Recving " + len);
-		int bytes_recv=0;
-		int r=1;
-		while (r>=0 && bytes_recv<len) {
-
-			long start_time = System.currentTimeMillis();
-			assert(bytes_per_second<(1<<30));
-			int read_len=java.lang.Math.min(bytes_per_second/4, len-bytes_recv);
-		
-			r = is.read(b,off+bytes_recv,read_len);
-
-			if (r>0) {
-				long wait_time = (long) (((double)r*1000)/bytes_per_second);
-				long already_waited_time = System.currentTimeMillis() - start_time;
-				if (already_waited_time<wait_time) {
-					try {
-							Thread.sleep(wait_time-already_waited_time);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
+		if (bytes_per_second>0) {
+			int bytes_recv=0;
+			int r=1;
+			while (r>=0 && bytes_recv<len) {
+	
+				long start_time = System.currentTimeMillis();
+				assert(bytes_per_second<(1<<30));
+				int read_len=java.lang.Math.min(bytes_per_second/4, len-bytes_recv);
+			
+				r = is.read(b,off+bytes_recv,read_len);
+	
+				if (r>0) {
+					long wait_time = (long) (((double)r*1000)/bytes_per_second);
+					long already_waited_time = System.currentTimeMillis() - start_time;
+					if (already_waited_time<wait_time) {
+						try {
+								Thread.sleep(wait_time-already_waited_time);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
 					}
+					
+					bytes_recv+=r;
+					total_bytes_recv+=r;
 				}
-				
-				bytes_recv+=r;
-				total_bytes_recv+=r;
 			}
+			return bytes_recv;
+		} else {
+			int bytes_recv=is.read(b,off,len);
+			total_bytes_recv+=bytes_recv;
+			return bytes_recv;
 		}
 
-		//OpenBox.log(0, "Recvd " + bytes_recv);
-		return bytes_recv;
 	}
 
 }
