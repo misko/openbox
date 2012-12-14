@@ -22,11 +22,11 @@ java -jar openbox.jar -p <port_number> -r <server_repository_path>
 Step 4: Run the client. We provide jar file for user to run the program more easily  by using this command:<br>
 java -jar openbox.jar -p <port_number> -s <server_ip_address> -r <client_repository_path>
 
-********************************************************************************************************************************************************<br>
+********************************************************************************************************************************************************
 We provide jar file to run the code. So user don't have to add apache commons jar files (already included in the libs folder) to the classpath manually.<br>
 But if user don't want to use the jar file, here is how to add apache commons jar files to the classpath: <br>
 java -cp .;..\libs\commons-logging-1.1.1.jar\libs\commons-vfs2-2.0.jar OpenBox<br>
-********************************************************************************************************************************************************<br>
+********************************************************************************************************************************************************
 
 There are more options of how to run the server and client. The details are explained below:
 
